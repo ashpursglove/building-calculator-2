@@ -1,6 +1,6 @@
 [package]
 name = "gdt_construction_planner"
-version = "0.1.0"
+version = "1.0.0"
 description = "GDT Construction Planner — desktop construction estimate suite"
 edition = "2021"
 
