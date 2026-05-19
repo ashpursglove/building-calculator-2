@@ -4,7 +4,7 @@
 
 ## Download the .exe [**HERE**](https://github.com/ashpursglove/building-calculator-2/releases/download/v1.0.0/GDT.Construction.Planner.exe)
 
-Successor to the legacy **building calculator 2** Python/PyQt tool. Same spirit: deterministic maths, local files, no login screen, no dashboard that wants to be your friend. Now with React, TypeScript, Tauri, and a file extension Windows might actually respect.
+Successor to the legacy **building calculator** Python/PyQt tool. Same spirit: deterministic maths, local files, no login screen, no dashboard that wants to be your friend. Now with React, TypeScript, Tauri, and a file extension Windows might actually respect.
 
 ---
 
