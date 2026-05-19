@@ -237,3 +237,5 @@ No guarantees.
 No miracles.  
 
 Just software that prefers your reactor count to be an integer and your sand volume to be calculated before it appears in a PDF.
+
+## Download the .exe [**HERE**](https://github.com/ashpursglove/building-calculator-2/releases/download/v1.0.0/GDT.Construction.Planner.exe)
