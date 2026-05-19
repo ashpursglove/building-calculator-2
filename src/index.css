@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --color-panel: oklch(0.21 0.02 260);
+  --color-accent: oklch(0.72 0.13 175);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
