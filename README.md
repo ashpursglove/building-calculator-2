@@ -19,7 +19,7 @@ It runs **locally**.
 It works **offline** (once built/installed).  
 It does not care about your Wi-Fi, your VPN, or whether Teams is having a day.
 
-Built with **Tauri 2** (native shell), **React + TypeScript** (UI), **Zustand** (state), and **pure calculation modules** under `src/domain/calculate/` — the same layering idea as the **PandID** reference app, but for money instead of pipes.
+Built with **Tauri 2** (native shell), **React + TypeScript** (UI), **Zustand** (state), and **pure calculation modules** under `src/domain/calculate/`
 
 ---
 
@@ -139,8 +139,6 @@ Projects save as **`.gctp`** files.
 - **Windows:** registered file type with the app icon (when installed or after first run registration)  
 - **Legacy:** older `.gctp.json` saves can still be opened; new saves use `.gctp` so Explorer stops insisting your project is “JSON Source File” and eloping with VS Code  
 
-**What does GCTP mean?** It’s the **GDT construction project** file tag — a short branded extension, not a rigorous acronym. If you need a sentence for a spec: *“GCTP: GDT Construction Planner project file (JSON).”* Nobody will quiz you on which letter is “Technologies.”
-
 **Save / Open** use native file dialogs in the desktop app. Browser dev mode falls back to download/upload behaviour that is functional but spiritually disappointing.
 
 ---
@@ -225,22 +223,6 @@ But they will be bad in a **consistent, repeatable, auditable** way — which is
 | `src/store/` | Zustand project state |
 | `src/io/` | Save/load, PDF export, desktop integration |
 | `src-tauri/` | Rust shell, Windows file associations, single-instance open |
-
----
-
-## Legacy Python Mapping
-
-For archaeologists migrating old work or comparing logic:
-
-| Former PyQt module | TypeScript module |
-|--------------------|-------------------|
-| `breeze_block_tab.py` | `domain/calculate/breezeBlock.ts` |
-| `sweet_sand_tab.py` | `domain/calculate/sweetSand.ts` |
-| `concrete_tab.py` | `domain/calculate/concrete.ts` |
-| `land_prep_tab.py` | `domain/calculate/landPrep.ts` |
-| `manpower_tab.py` | `domain/calculate/manpower.ts` |
-| `equipment_tab.py` | `domain/calculate/equipment.ts` |
-| `block_data.py` | `domain/blockTypes.ts` |
 
 ---
 
