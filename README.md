@@ -1,6 +1,7 @@
 # GDT Construction Planner
 
-**v1.1.0** — desktop construction estimator for reactor sites, spreadsheets, and anyone who has ever typed “≈” into a BOQ and called it done.
+**v1.1.0**
+## Desktop construction estimator for reactor sites, spreadsheets, and anyone who has ever typed “≈” into a BOQ and called it done.
 
 ## Download the .exe [**HERE**](https://github.com/ashpursglove/building-calculator-2/releases/download/v1.1.0/GDT.Construction.Planner.exe)
 
