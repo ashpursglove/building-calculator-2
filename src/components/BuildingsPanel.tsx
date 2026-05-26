@@ -2,7 +2,7 @@ import { LineItemTable } from "@/components/planner/LineItemTable";
 
 export function BuildingsPanel() {
   return (
-    <div className="mx-auto grid max-w-5xl gap-4">
+    <div className="mx-auto grid min-w-0 w-full max-w-6xl gap-4">
       <LineItemTable
         category="buildings"
         title="Buildings & structures"

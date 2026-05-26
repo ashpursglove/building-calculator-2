@@ -145,6 +145,7 @@ export function lineItemRawCost(item: LineItem, reactorCount: number): number {
 export function aggregateLineItems(
   items: readonly LineItem[],
   reactorCount: number,
+  marginPct: Record<MarginTier, number> = MARGIN_TIER_PCT,
 ): LineItemBreakdown {
   let raw = 0;
   let withMargin = 0;
@@ -153,7 +154,7 @@ export function aggregateLineItems(
   for (const item of items) {
     const cost = lineItemRawCost(item, reactorCount);
     raw += cost;
-    const margined = cost * (1 + MARGIN_TIER_PCT[item.marginTier] / 100);
+    const margined = cost * (1 + marginPct[item.marginTier] / 100);
     withMargin += margined;
     if (item.costCenter === "gdt") gdt += cost;
     else contractor += cost;
@@ -180,6 +181,7 @@ export interface GdtTimeBreakdown {
 export function aggregateGdtTime(
   items: readonly GdtTimeItem[],
   rates: GdtTimeRates,
+  marginPct: Record<MarginTier, number> = MARGIN_TIER_PCT,
 ): GdtTimeBreakdown {
   let totalDays = 0;
   let raw = 0;
@@ -200,7 +202,7 @@ export function aggregateGdtTime(
         : rates[item.workGroup];
     const cost = days * rate;
     raw += cost;
-    withMargin += cost * (1 + MARGIN_TIER_PCT[item.marginTier] / 100);
+    withMargin += cost * (1 + marginPct[item.marginTier] / 100);
     if (item.costCenter === "gdt") gdt += cost;
     else contractor += cost;
     totalDays += days;

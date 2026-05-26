@@ -12,10 +12,16 @@ import {
   UnitTh,
   GhostNumberInput,
   PlannerHeadRow,
+  PlannerTd,
   PlannerTh,
   PlannerThead,
   numInputCls,
+  plannerColActions,
+  plannerColNumeric,
+  plannerColNumericSm,
+  plannerColOn,
   plannerTableClass,
+  plannerTableNumericInputCls,
 } from "@/components/planner/ui";
 import { computeReactorGeometry } from "@/domain/calculate/reactors";
 
@@ -112,13 +118,13 @@ export function LandPrepPanel() {
           <table className={plannerTableClass("min-w-[640px]")}>
             <PlannerThead>
               <PlannerHeadRow>
-                <PlannerTh>On</PlannerTh>
+                <PlannerTh className={plannerColOn}>On</PlannerTh>
                 <PlannerTh>
                   Label <HelpIcon text={HELP.groupLabel} />
                 </PlannerTh>
                 <UnitTh label="Area" unit="m²" help={HELP.platformArea} />
                 <UnitTh label="Depth" unit="cm" help={HELP.platformDepth} />
-                <PlannerTh align="right" className="w-16">
+                <PlannerTh align="center" className={plannerColActions}>
                   <span className="sr-only">Actions</span>
                 </PlannerTh>
               </PlannerHeadRow>
@@ -132,7 +138,7 @@ export function LandPrepPanel() {
                     !p.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -141,7 +147,7 @@ export function LandPrepPanel() {
                         patchPlatform(p.id, { enabled: ev.target.checked })
                       }
                     />
-                  </td>
+                  </PlannerTd>
                   <td className="py-2 pr-2">
                     <input
                       className={clsx(numInputCls(), "min-w-[200px]")}
@@ -152,23 +158,23 @@ export function LandPrepPanel() {
                       }
                     />
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[110px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.1}
                       value={p.areaM2}
                       onChange={(n) => patchPlatform(p.id, { areaM2: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[100px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.1}
                       value={p.depthCm}
                       onChange={(n) => patchPlatform(p.id, { depthCm: n })}
                     />
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -176,7 +182,7 @@ export function LandPrepPanel() {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               ))}
               {l.platforms.length === 0 ?
@@ -203,15 +209,15 @@ export function LandPrepPanel() {
           <table className={plannerTableClass("min-w-[720px]")}>
             <PlannerThead>
               <PlannerHeadRow>
-                <PlannerTh>On</PlannerTh>
+                <PlannerTh className={plannerColOn}>On</PlannerTh>
                 <PlannerTh>
                   Label <HelpIcon text={HELP.groupLabel} />
                 </PlannerTh>
                 <UnitTh label="Length" unit="m" help={HELP.trenchLength} />
                 <UnitTh label="Width" unit="m" help={HELP.trenchWidth} />
                 <UnitTh label="Depth" unit="cm" help={HELP.trenchDepth} />
-                <UnitTh label="Count" unit="#" help={HELP.trenchCount} />
-                <PlannerTh align="right" className="w-16">
+                <UnitTh label="Count" unit="#" help={HELP.trenchCount} size="sm" />
+                <PlannerTh align="center" className={plannerColActions}>
                   <span className="sr-only">Actions</span>
                 </PlannerTh>
               </PlannerHeadRow>
@@ -225,7 +231,7 @@ export function LandPrepPanel() {
                     !t.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -234,7 +240,7 @@ export function LandPrepPanel() {
                         patchTrench(t.id, { enabled: ev.target.checked })
                       }
                     />
-                  </td>
+                  </PlannerTd>
                   <td className="py-2 pr-2">
                     <input
                       className={clsx(numInputCls(), "min-w-[200px]")}
@@ -245,40 +251,40 @@ export function LandPrepPanel() {
                       }
                     />
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[90px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.1}
                       value={t.lengthM}
                       onChange={(n) => patchTrench(t.id, { lengthM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[90px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.01}
                       value={t.widthM}
                       onChange={(n) => patchTrench(t.id, { widthM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[90px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={1}
                       value={t.depthCm}
                       onChange={(n) => patchTrench(t.id, { depthCm: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumericSm}>
                     <GhostNumberInput
-                      className="max-w-[80px] text-right"
+                      className={plannerTableNumericInputCls()}
                       min={0}
                       integer
                       value={t.count}
                       onChange={(n) => patchTrench(t.id, { count: n })}
                     />
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -286,7 +292,7 @@ export function LandPrepPanel() {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               ))}
               {l.trenches.length === 0 ?

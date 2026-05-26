@@ -63,14 +63,19 @@ export function defaultDisciplineClassifications(): DisciplineClassifications {
   };
 }
 
-export function marginedUsd(rawUsd: number, tier: MarginTier): number {
+export function marginedUsd(
+  rawUsd: number,
+  tier: MarginTier,
+  marginPct: Record<MarginTier, number>,
+): number {
   const raw = Number.isFinite(rawUsd) ? Math.max(0, rawUsd) : 0;
-  return raw * (1 + MARGIN_TIER_PCT[tier] / 100);
+  return raw * (1 + marginPct[tier] / 100);
 }
 
 export function classifyAmount(
   rawUsd: number,
   classification: QuoteClassification,
+  marginPct: Record<MarginTier, number>,
 ): {
   rawUsd: number;
   withMarginUsd: number;
@@ -79,7 +84,7 @@ export function classifyAmount(
   contractorRawUsd: number;
 } {
   const raw = Number.isFinite(rawUsd) ? Math.max(0, rawUsd) : 0;
-  const withMargin = marginedUsd(raw, classification.marginTier);
+  const withMargin = marginedUsd(raw, classification.marginTier, marginPct);
   const gdtRaw = classification.costCenter === "gdt" ? raw : 0;
   const contractorRaw = classification.costCenter === "contractor" ? raw : 0;
   return {
@@ -149,6 +154,8 @@ const CATEGORY_ORDER: LineItemCategory[] = [
 
 /** Build every quote line for summary tables and PDF export. */
 export function computeQuoteRollup(state: ConstructionState): QuoteRollup {
+  const marginPct =
+    state.config?.marginTierPct ?? { ...MARGIN_TIER_PCT };
   const lines: QuoteLine[] = [];
   let totalRaw = 0;
   let totalQuote = 0;
@@ -162,7 +169,7 @@ export function computeQuoteRollup(state: ConstructionState): QuoteRollup {
   for (const key of DISCIPLINE_KEYS) {
     const raw = disciplineRaw(state, key);
     const classification = dc[key] ?? defaultDisciplineClassifications()[key];
-    const c = classifyAmount(raw, classification);
+    const c = classifyAmount(raw, classification, marginPct);
     if (raw <= 0) continue;
     lines.push({
       id: `disc-${key}`,
@@ -204,10 +211,14 @@ export function computeQuoteRollup(state: ConstructionState): QuoteRollup {
     let catQuote = 0;
     for (const item of itemsInCat) {
       const raw = lineItemRawCost(item, state.reactors.count);
-      const c = classifyAmount(raw, {
-        costCenter: item.costCenter,
-        marginTier: item.marginTier,
-      });
+      const c = classifyAmount(
+        raw,
+        {
+          costCenter: item.costCenter,
+          marginTier: item.marginTier,
+        },
+        marginPct,
+      );
       catRaw += c.rawUsd;
       catQuote += c.withMarginUsd;
       lines.push({
@@ -251,10 +262,14 @@ export function computeQuoteRollup(state: ConstructionState): QuoteRollup {
         : state.gdtTime.rates[item.workGroup];
     const raw = days * rate;
     const cc = item.costCenter ?? "gdt";
-    const c = classifyAmount(raw, {
-      costCenter: cc,
-      marginTier: item.marginTier,
-    });
+    const c = classifyAmount(
+      raw,
+      {
+        costCenter: cc,
+        marginTier: item.marginTier,
+      },
+      marginPct,
+    );
     lines.push({
       id: item.id,
       label: item.label,
@@ -273,7 +288,11 @@ export function computeQuoteRollup(state: ConstructionState): QuoteRollup {
     else contractorScopeQuote += c.withMarginUsd;
   }
 
-  const timeAgg = aggregateGdtTime(state.gdtTime.items, state.gdtTime.rates);
+  const timeAgg = aggregateGdtTime(
+    state.gdtTime.items,
+    state.gdtTime.rates,
+    marginPct,
+  );
   if (timeAgg.rawUsd > 0) {
     lines.push({
       id: "gdt-time-total",

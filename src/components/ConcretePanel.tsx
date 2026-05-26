@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { useEffect, useState } from "react";
 
 import { useProjectStore } from "@/store/projectStore";
 import { DisciplineQuoteBar } from "@/components/planner/DisciplineQuoteBar";
@@ -11,13 +12,28 @@ import {
   UnitTh,
   GhostNumberInput,
   PlannerHeadRow,
+  PlannerTd,
   PlannerTh,
   PlannerThead,
   numInputCls,
+  plannerColActions,
+  plannerColNumeric,
+  plannerColNumericSm,
+  plannerColOn,
   plannerTableClass,
+  plannerTableNumericInputCls,
 } from "@/components/planner/ui";
 import { CONCRETE_ELEMENT_LABELS } from "@/domain/concreteKinds";
 import type { ConcreteElementType } from "@/domain/calculate/concrete";
+import {
+  REBAR_DENSITY_PRESETS,
+  type RebarDensityPresetId as ConcreteRebarPresetId,
+} from "@/domain/calculate/concrete";
+import {
+  rebarDensityKgM3ForPreset,
+  rebarDensityPresetForValue,
+  type RebarDensityPresetId,
+} from "@/domain/plannerConfig";
 
 const ELEMENT_TYPES: ConcreteElementType[] = [
   "slab",
@@ -44,6 +60,7 @@ export function ConcretePanel() {
   const removeEl = useProjectStore((s) => s.removeConcreteElement);
   const calc = useProjectStore((s) => s.calculateConcrete);
   const reset = useProjectStore((s) => s.resetConcrete);
+  const rebarPresets = useProjectStore((s) => s.config.rebarDensityKgM3);
 
   return (
     <div className="mx-auto grid max-w-5xl gap-4">
@@ -57,7 +74,7 @@ export function ConcretePanel() {
           <table className={plannerTableClass("min-w-[900px]")}>
             <PlannerThead>
               <PlannerHeadRow>
-                <PlannerTh>On</PlannerTh>
+                <PlannerTh className={plannerColOn}>On</PlannerTh>
                 <PlannerTh>
                   Label <HelpIcon text={HELP.label} />
                 </PlannerTh>
@@ -68,8 +85,8 @@ export function ConcretePanel() {
                 <UnitTh label="Width" unit="m" help={HELP.width} />
                 <UnitTh label="Height" unit="m" help={HELP.height} />
                 <UnitTh label="Depth" unit="cm" help={HELP.thickness} />
-                <UnitTh label="Count" unit="#" help={HELP.count} />
-                <PlannerTh align="right" className="w-16">
+                <UnitTh label="Count" unit="#" help={HELP.count} size="sm" />
+                <PlannerTh align="center" className={plannerColActions}>
                   <span className="sr-only">Actions</span>
                 </PlannerTh>
               </PlannerHeadRow>
@@ -83,7 +100,7 @@ export function ConcretePanel() {
                     !el.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -92,7 +109,7 @@ export function ConcretePanel() {
                         patchEl(el.id, { enabled: ev.target.checked })
                       }
                     />
-                  </td>
+                  </PlannerTd>
                   <td className="py-2 pr-2">
                     <input
                       className={clsx(numInputCls(), "min-w-[160px]")}
@@ -120,51 +137,48 @@ export function ConcretePanel() {
                       ))}
                     </select>
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[90px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.001}
                       value={el.lengthM}
                       onChange={(n) => patchEl(el.id, { lengthM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className={clsx(
-                        "max-w-[90px] text-right",
-                        el.elementType === "wall" && "opacity-40",
+                      className={plannerTableNumericInputCls(
+                        el.elementType === "wall" ? "opacity-40" : undefined,
                       )}
                       step={0.001}
                       value={el.widthM}
                       disabled={el.elementType === "wall"}
                       onChange={(n) => patchEl(el.id, { widthM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className={clsx(
-                        "max-w-[90px] text-right",
-                        el.elementType !== "wall" && "opacity-40",
+                      className={plannerTableNumericInputCls(
+                        el.elementType !== "wall" ? "opacity-40" : undefined,
                       )}
                       step={0.001}
                       value={el.heightM}
                       disabled={el.elementType !== "wall"}
                       onChange={(n) => patchEl(el.id, { heightM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[90px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.1}
                       value={el.thicknessCm}
                       onChange={(n) => patchEl(el.id, { thicknessCm: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumericSm}>
                     <GhostNumberInput
-                      className={clsx(
-                        "max-w-[70px] text-right",
-                        el.elementType === "strip" && "opacity-40",
+                      className={plannerTableNumericInputCls(
+                        el.elementType === "strip" ? "opacity-40" : undefined,
                       )}
                       min={0}
                       integer
@@ -172,8 +186,8 @@ export function ConcretePanel() {
                       disabled={el.elementType === "strip"}
                       onChange={(n) => patchEl(el.id, { count: n })}
                     />
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -181,7 +195,7 @@ export function ConcretePanel() {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               ))}
               {c.elements.length === 0 ?
@@ -208,46 +222,48 @@ export function ConcretePanel() {
 
       <Panel title="Materials (shared)">
         <div className="grid gap-3 sm:grid-cols-2">
-          {(
-            [
-              [
-                "Concrete density (kg/m³)",
-                "densityKgM3",
-                1,
-                "Wet density of fresh concrete, kg/m³.",
-              ],
-              [
-                "Concrete USD/m³",
-                "costUsdM3",
-                0.01,
-                "Delivered concrete unit cost, USD per cubic metre.",
-              ],
-              [
-                "Rebar kg/m³",
-                "rebarKgM3",
-                0.5,
-                "Reinforcement steel density per m³ of concrete.",
-              ],
-              [
-                "Rebar USD/t",
-                "rebarCostUsdT",
-                0.01,
-                "Rebar unit cost in USD per tonne.",
-              ],
-            ] as const
-          ).map(([label, key, step, help]) => (
-            <Field key={key} label={label} help={help}>
-              <GhostNumberInput
-                step={step}
-                value={c.materials[key]}
-                onChange={(n) =>
-                  setConcrete({
-                    materials: { ...c.materials, [key]: n },
-                  })
-                }
-              />
-            </Field>
-          ))}
+          <Field
+            label="Concrete density (kg/m³)"
+            help="Wet density of fresh concrete, kg/m³."
+          >
+            <GhostNumberInput
+              step={1}
+              value={c.materials.densityKgM3}
+              onChange={(n) =>
+                setConcrete({
+                  materials: { ...c.materials, densityKgM3: n },
+                })
+              }
+            />
+          </Field>
+          <Field
+            label="Concrete USD/m³"
+            help="Delivered concrete unit cost, USD per cubic metre."
+          >
+            <GhostNumberInput
+              step={0.01}
+              value={c.materials.costUsdM3}
+              onChange={(n) =>
+                setConcrete({
+                  materials: { ...c.materials, costUsdM3: n },
+                })
+              }
+            />
+          </Field>
+        </div>
+
+        <div className="mt-4 border-t border-zinc-800 pt-4">
+          <h3 className="mb-3 text-sm font-medium text-teal-200/90">Rebar</h3>
+          <RebarMaterialsFields
+            rebarKgM3={c.materials.rebarKgM3}
+            rebarCostUsdT={c.materials.rebarCostUsdT}
+            rebarPresets={rebarPresets}
+            onChange={(patch) =>
+              setConcrete({
+                materials: { ...c.materials, ...patch },
+              })
+            }
+          />
         </div>
       </Panel>
 
@@ -295,6 +311,86 @@ export function ConcretePanel() {
       : null}
 
       <SweetSandSection />
+    </div>
+  );
+}
+
+function RebarMaterialsFields(props: {
+  rebarKgM3: number;
+  rebarCostUsdT: number;
+  rebarPresets: { low: number; medium: number; high: number };
+  onChange: (patch: Partial<{ rebarKgM3: number; rebarCostUsdT: number }>) => void;
+}) {
+  const derivedPreset = rebarDensityPresetForValue(
+    props.rebarKgM3,
+    props.rebarPresets,
+  );
+  const [mode, setMode] = useState<RebarDensityPresetId | "custom">(derivedPreset);
+
+  useEffect(() => {
+    setMode(rebarDensityPresetForValue(props.rebarKgM3, props.rebarPresets));
+  }, [props.rebarKgM3, props.rebarPresets]);
+
+  const densityHelp =
+    mode === "custom"
+      ? "Choose Custom to enter a project-specific steel content in kg/m³."
+      : REBAR_DENSITY_PRESETS[mode as ConcreteRebarPresetId].help;
+
+  const presetOptions: { id: RebarDensityPresetId; label: string; kgM3: number }[] = [
+    { id: "low", label: "Low", kgM3: props.rebarPresets.low },
+    { id: "medium", label: "Medium", kgM3: props.rebarPresets.medium },
+    { id: "high", label: "High", kgM3: props.rebarPresets.high },
+  ];
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Rebar density" help={densityHelp}>
+        <select
+          className={clsx(numInputCls(), "max-w-none")}
+          value={mode}
+          onChange={(ev) => {
+            const next = ev.target.value as RebarDensityPresetId | "custom";
+            if (next === "custom") {
+              setMode("custom");
+              return;
+            }
+            setMode(next);
+            props.onChange({
+              rebarKgM3: rebarDensityKgM3ForPreset(next, props.rebarPresets),
+            });
+          }}
+        >
+          {presetOptions.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label} — {p.kgM3} kg/m³
+            </option>
+          ))}
+          <option value="custom">Custom…</option>
+        </select>
+      </Field>
+      {mode === "custom" ?
+        <Field
+          label="Custom rebar (kg/m³)"
+          help="Kg of reinforcement steel per m³ of concrete."
+        >
+          <GhostNumberInput
+            step={0.5}
+            min={0}
+            value={props.rebarKgM3}
+            onChange={(n) => props.onChange({ rebarKgM3: n })}
+          />
+        </Field>
+      : null}
+      <Field
+        label="Rebar USD/t"
+        help="Rebar unit cost in USD per tonne."
+      >
+        <GhostNumberInput
+          step={0.01}
+          value={props.rebarCostUsdT}
+          onChange={(n) => props.onChange({ rebarCostUsdT: n })}
+        />
+      </Field>
     </div>
   );
 }

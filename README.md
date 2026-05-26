@@ -1,6 +1,6 @@
 # GDT Construction Planner
 
-### A desktop construction estimator for reactor sites, spreadsheets, and anyone who has ever typed “≈” into a BOQ and called it done
+**v1.1.0** — desktop construction estimator for reactor sites, spreadsheets, and anyone who has ever typed “≈” into a BOQ and called it done.
 
 Successor to the legacy **building calculator 2** Python/PyQt tool. Same spirit: deterministic maths, local files, no login screen, no dashboard that wants to be your friend. Now with React, TypeScript, Tauri, and a file extension Windows might actually respect.
 
@@ -67,6 +67,7 @@ This tab drives a lot of downstream geometry. If the count is wrong, everything 
 
 - Slabs, strip footings, walls, isolated footings  
 - **Sweet sand (bedding)** lives here too — racetrack-shaped bases, corner fillets, density and $/t  
+- **Rebar density presets** — Low / Medium / High (configurable kg/m³) plus Custom  
 - Volume, reinforcement mass, cost breakdowns  
 - No hidden “multiply by 1.2 because vibes” factor  
 
@@ -84,13 +85,16 @@ This tab drives a lot of downstream geometry. If the count is wrong, everything 
 
 ### Manpower
 
-- Trade-based roster  
+- **Add/remove crew lines** — preset trades or custom blank rows (same pattern as CapEx line items)  
+- Per-row **days on site** — leave blank to use the schedule default  
 - Normal hours, overtime, OT factors that acknowledge labour laws exist  
 - Mobilisation, demobilisation, site overheads  
 - Man-hours and cost without assuming humans are fungible  
 
 ### Equipment
 
+- **Add/remove fleet lines** — preset plant types or custom blank rows  
+- Per-row **days on hire** — leave blank to use the schedule default  
 - Per-machine rows: hire rate, utilisation, fuel burn  
 - Schedule days and hours, fuel price, plant mob/demob/overheads  
 - An actual breakdown instead of a suspiciously round number  
@@ -102,14 +106,24 @@ This tab drives a lot of downstream geometry. If the count is wrong, everything 
 - **GDT internal time**: engineering / site ops / bio ops day rates and task lines  
 - Included in internal totals; kept out of the client-facing quotation summary where it belongs  
 
+### Config
+
+- **Project presets** — saved with each `.gctp` file  
+- **Quote margin tiers** — edit None / Low / Medium / High percentages (applied immediately across the roll-up)  
+- **Rebar density presets** — Low / Medium / High kg/m³ for the Concrete tab  
+- **GDT default day rates** — Engineering, Site Ops, Bio Ops USD/day  
+- **Manpower trade rates** — default USD/h when adding crew lines from presets  
+- **Equipment fleet presets** — editable plant list (name, hire rate, fuel L/h) for the Equipment add dropdown  
+- Reset all presets to factory defaults  
+
 ---
 
 ## Quote Roll-Up (Margins & Cost Centres)
 
 Not everything is raw cost. Line items and disciplines can carry:
 
-- **Cost centre** — GDT vs contractor scope  
-- **Margin tier** — none, low, medium, high (percentages applied in the roll-up)  
+- **Cost centre** — GDT vs contractor scope (defaults to GDT on new projects)  
+- **Margin tier** — none, low, medium, high (percentages applied in the roll-up; **editable on the Config tab**)  
 
 The Summary and PDFs distinguish **raw programme cost** from **client quotation**. If you set everything to “none” and GDT, you get a very honest spreadsheet. If you don’t, you get a commercial document. Both are features.
 
@@ -126,6 +140,7 @@ Two deliberate audiences:
 
 - A4, structured sections, page numbers  
 - Empty disciplines (never calculated) are **omitted** — no “please press Calculate on the Sand tab” placeholders in the PDF  
+- Manpower and equipment tables show days as plain numbers (no “default” annotation)  
 - No Adobe. No Java. No 17 GB updates. No ancient curses.  
 
 ---
@@ -135,6 +150,7 @@ Two deliberate audiences:
 Projects save as **`.gctp`** files.
 
 - **On disk:** JSON (versioned schema in `src/io/projectFile.ts`, currently v4)  
+- **Planner config** — margin percentages, rebar presets, default rates, and equipment fleet presets stored per project  
 - **Human-readable**, diffable, email-friendly  
 - **Windows:** registered file type with the app icon (when installed or after first run registration)  
 - **Legacy:** older `.gctp.json` saves can still be opened; new saves use `.gctp` so Explorer stops insisting your project is “JSON Source File” and eloping with VS Code  

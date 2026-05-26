@@ -1,3 +1,6 @@
+import { useState } from "react";
+import clsx from "clsx";
+
 import { useProjectStore } from "@/store/projectStore";
 import { DisciplineQuoteBar } from "@/components/planner/DisciplineQuoteBar";
 import { usd } from "@/components/planner/formatters";
@@ -7,10 +10,18 @@ import {
   HelpIcon,
   Panel,
   GhostNumberInput,
+  GhostOptionalNumberInput,
   PlannerHeadRow,
+  PlannerTd,
   PlannerTh,
   PlannerThead,
+  numInputCls,
+  plannerColActions,
+  plannerColNumeric,
+  plannerColNumericSm,
+  plannerColOn,
   plannerTableClass,
+  plannerTableNumericInputCls,
 } from "@/components/planner/ui";
 
 const FLEET_HELP = {
@@ -22,10 +33,13 @@ const FLEET_HELP = {
     "Average fuel consumption per machine, litres per hour. Use the manufacturer's figure or supplier estimate.",
   util:
     "Utilisation factor — % of each working hour the machine is actually under load (50–80% is typical).",
+  days:
+    "Days this plant item is on hire. Leave blank to use the default working days from the schedule below.",
 };
 
 const SCHEDULE_HELP = {
-  days: "Working days the fleet is on hire.",
+  days:
+    "Default working days on hire. Used for any fleet line where Days on site is left blank.",
   hoursPerDay: "Working hours per machine per day (typical shift length).",
   fuelPriceUsdL: "Delivered diesel price at site, USD/litre.",
 };
@@ -41,84 +55,182 @@ const OVERHEAD_HELP = {
 export function EquipmentPanel() {
   const eq = useProjectStore((s) => s.equipment);
   const setEq = useProjectStore((s) => s.setEquipment);
-  const rowPatch = useProjectStore((s) => s.updateEquipRow);
+  const addRow = useProjectStore((s) => s.addEquipmentRow);
+  const patchRow = useProjectStore((s) => s.patchEquipmentRow);
+  const removeRow = useProjectStore((s) => s.removeEquipmentRow);
   const calc = useProjectStore((s) => s.calculateEquipment);
   const reset = useProjectStore((s) => s.resetEquipment);
+  const equipmentPresets = useProjectStore((s) => s.config.equipmentPresets);
+
+  const [addChoice, setAddChoice] = useState("");
+  const defaultDaysLabel = String(eq.days);
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-4">
+    <div className="mx-auto grid w-full max-w-6xl gap-4">
       <Panel title="Fleet">
-        <div className="overflow-x-auto">
-          <table className={plannerTableClass("min-w-[640px] text-xs")}>
-            <PlannerThead>
-              <PlannerHeadRow>
-                <PlannerTh>
-                  Name <HelpIcon text={FLEET_HELP.name} />
-                </PlannerTh>
-                <PlannerTh align="right">
-                  Units <HelpIcon text={FLEET_HELP.count} />
-                </PlannerTh>
-                <PlannerTh align="right">
-                  USD/h <HelpIcon text={FLEET_HELP.rate} />
-                </PlannerTh>
-                <PlannerTh align="right">
-                  L/h <HelpIcon text={FLEET_HELP.fuel} />
-                </PlannerTh>
-                <PlannerTh align="right">
-                  % <HelpIcon text={FLEET_HELP.util} />
-                </PlannerTh>
-              </PlannerHeadRow>
-            </PlannerThead>
-            <tbody>
-              {eq.rows.map((r, idx) => (
-                <tr key={idx} className="border-b border-zinc-800">
-                  <td className="py-2 pr-2">
-                    <input className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
-                      type="text"
-                      value={r.name}
-                      onChange={(e) =>
-                        rowPatch(idx, { name: e.target.value })
-                      }
-                    />
-                  </td>
-                  <td className="py-2">
-                    <GhostNumberInput
-                      min={0}
-                      integer
-                      value={r.count}
-                      onChange={(n) => rowPatch(idx, { count: n })}
-                    />
-                  </td>
-                  <td className="py-2">
-                    <GhostNumberInput
-                      step={5}
-                      value={r.rateUsdH}
-                      onChange={(n) => rowPatch(idx, { rateUsdH: n })}
-                    />
-                  </td>
-                  <td className="py-2">
-                    <GhostNumberInput
-                      step={0.5}
-                      value={r.fuelLH}
-                      onChange={(n) => rowPatch(idx, { fuelLH: n })}
-                    />
-                  </td>
-                  <td className="py-2">
-                    <GhostNumberInput
-                      step={5}
-                      value={r.utilPct}
-                      onChange={(n) => rowPatch(idx, { utilPct: n })}
-                    />
-                  </td>
-                </tr>
+        <p className="mb-3 text-xs text-zinc-400">
+          Add plant one line at a time. Each item can have its own days on site
+          — leave Days blank to use the default from the schedule below (
+          {defaultDaysLabel} days).
+        </p>
+        <table className={clsx(plannerTableClass("min-w-0"), "text-xs")}>
+          <PlannerThead>
+            <PlannerHeadRow>
+              <PlannerTh className={plannerColOn}>On</PlannerTh>
+              <PlannerTh className="min-w-0">
+                Name <HelpIcon text={FLEET_HELP.name} />
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColNumericSm}>
+                Units <HelpIcon text={FLEET_HELP.count} />
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColNumeric}>
+                USD/h <HelpIcon text={FLEET_HELP.rate} />
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColNumeric}>
+                L/h <HelpIcon text={FLEET_HELP.fuel} />
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColNumericSm}>
+                % <HelpIcon text={FLEET_HELP.util} />
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColNumericSm}>
+                Days <HelpIcon text={FLEET_HELP.days} />
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColActions}>
+                <span className="sr-only">Actions</span>
+              </PlannerTh>
+            </PlannerHeadRow>
+          </PlannerThead>
+          <tbody>
+            {eq.rows.map((row) => (
+              <tr
+                key={row.id}
+                className={clsx(
+                  "border-b border-zinc-800",
+                  !row.enabled && "opacity-50",
+                )}
+              >
+                <PlannerTd align="center" className={plannerColOn}>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-teal-500"
+                    checked={row.enabled}
+                    onChange={(ev) =>
+                      patchRow(row.id, { enabled: ev.target.checked })
+                    }
+                    aria-label={`Enable ${row.name}`}
+                  />
+                </PlannerTd>
+                <td className="min-w-0 px-1 py-2">
+                  <input
+                    className="w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                    type="text"
+                    value={row.name}
+                    onChange={(e) =>
+                      patchRow(row.id, { name: e.target.value })
+                    }
+                  />
+                </td>
+                <PlannerTd align="center" className={plannerColNumericSm}>
+                  <GhostNumberInput
+                    className={plannerTableNumericInputCls()}
+                    min={0}
+                    integer
+                    value={row.count}
+                    onChange={(n) => patchRow(row.id, { count: n })}
+                  />
+                </PlannerTd>
+                <PlannerTd align="center" className={plannerColNumeric}>
+                  <GhostNumberInput
+                    className={plannerTableNumericInputCls()}
+                    step={5}
+                    value={row.rateUsdH}
+                    onChange={(n) => patchRow(row.id, { rateUsdH: n })}
+                  />
+                </PlannerTd>
+                <PlannerTd align="center" className={plannerColNumeric}>
+                  <GhostNumberInput
+                    className={plannerTableNumericInputCls()}
+                    step={0.5}
+                    value={row.fuelLH}
+                    onChange={(n) => patchRow(row.id, { fuelLH: n })}
+                  />
+                </PlannerTd>
+                <PlannerTd align="center" className={plannerColNumericSm}>
+                  <GhostNumberInput
+                    className={plannerTableNumericInputCls()}
+                    step={5}
+                    value={row.utilPct}
+                    onChange={(n) => patchRow(row.id, { utilPct: n })}
+                  />
+                </PlannerTd>
+                <PlannerTd align="center" className={plannerColNumericSm}>
+                  <GhostOptionalNumberInput
+                    className={plannerTableNumericInputCls()}
+                    step={1}
+                    min={1}
+                    emptyPlaceholder={defaultDaysLabel}
+                    value={row.daysOverride}
+                    onChange={(n) => patchRow(row.id, { daysOverride: n })}
+                  />
+                </PlannerTd>
+                <PlannerTd align="center" className={plannerColActions}>
+                  <button
+                    type="button"
+                    className="text-xs text-rose-400 hover:text-rose-300"
+                    onClick={() => removeRow(row.id)}
+                  >
+                    remove
+                  </button>
+                </PlannerTd>
+              </tr>
+            ))}
+            {eq.rows.length === 0 ?
+              <tr>
+                <td
+                  colSpan={8}
+                  className="py-3 text-center text-xs text-zinc-500"
+                >
+                  No fleet lines yet — choose a preset or add a custom line
+                  below.
+                </td>
+              </tr>
+            : null}
+          </tbody>
+        </table>
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <label className="flex min-w-[min(100%,280px)] flex-1 flex-col gap-1">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+              Add fleet line
+            </span>
+            <select
+              className={clsx(numInputCls(), "max-w-none")}
+              value={addChoice}
+              onChange={(ev) => setAddChoice(ev.target.value)}
+            >
+              <option value="">Select preset or custom…</option>
+              {equipmentPresets.map((p, idx) => (
+                <option key={p.name} value={String(idx)}>
+                  {p.name}
+                </option>
               ))}
-            </tbody>
-          </table>
+              <option value="__custom__">Custom blank line…</option>
+            </select>
+          </label>
+          <Btn
+            disabled={addChoice === ""}
+            onClick={() => {
+              if (addChoice === "__custom__") addRow();
+              else addRow(Number(addChoice));
+              setAddChoice("");
+            }}
+          >
+            Add
+          </Btn>
         </div>
       </Panel>
-      <Panel title="Operating schedule">
+      <Panel title="Operating schedule defaults">
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Days" help={SCHEDULE_HELP.days}>
+          <Field label="Default working days" help={SCHEDULE_HELP.days}>
             <GhostNumberInput
               min={1}
               integer

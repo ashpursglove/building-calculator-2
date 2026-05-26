@@ -14,13 +14,13 @@ import {
 import {
   COST_CENTER_LABELS,
   LINE_CATEGORY_LABELS,
-  MARGIN_TIER_LABELS,
   MARGIN_TIER_PCT,
   aggregateGdtTime,
   aggregateLineItems,
   lineItemRawCost,
   type LineItemCategory,
 } from "@/domain/calculate/lineItems";
+import { marginTierLabels } from "@/domain/plannerConfig";
 import { computeReactorGeometry } from "@/domain/calculate/reactors";
 import {
   classifyAmount,
@@ -202,6 +202,8 @@ function buildPdf(state: ConstructionState, audience: PdfAudience): jsPDF {
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   const rollup = computeQuoteRollup(state);
   const executive = executiveQuoteLines(rollup);
+  const marginPct = state.config?.marginTierPct ?? { ...MARGIN_TIER_PCT };
+  const marginLabels = marginTierLabels(marginPct);
   const client = audience === "client";
   let y = MARGIN_T;
   let page = 1;
@@ -455,10 +457,14 @@ function buildPdf(state: ConstructionState, audience: PdfAudience): jsPDF {
       let catQuoteUsd = 0;
       for (const item of itemsInCat) {
         const raw = lineItemRawCost(item, state.reactors.count);
-        const quote = classifyAmount(raw, {
-          costCenter: item.costCenter,
-          marginTier: item.marginTier,
-        }).withMarginUsd;
+        const quote = classifyAmount(
+          raw,
+          {
+            costCenter: item.costCenter,
+            marginTier: item.marginTier,
+          },
+          marginPct,
+        ).withMarginUsd;
         if (quote <= 0) continue;
         catQuoteUsd += quote;
         const qtyPart =
@@ -841,7 +847,7 @@ function buildPdf(state: ConstructionState, audience: PdfAudience): jsPDF {
     doc.setFontSize(8.5);
     for (const item of itemsInCat) {
       const raw = lineItemRawCost(item, state.reactors.count);
-      const margin = MARGIN_TIER_PCT[item.marginTier];
+      const margin = marginPct[item.marginTier];
       const margined = raw * (1 + margin / 100);
       beginBlock(LINE_ITEM_ROW_MM);
       const qtyPart =
@@ -851,7 +857,7 @@ function buildPdf(state: ConstructionState, audience: PdfAudience): jsPDF {
       const left = pdfSafe(
         `${item.label} (${qtyPart} x ${fmtMoney(item.unitCostUsd)})`,
       );
-      const right = `${fmtInternalAmount(raw, margined)} [${pdfSafe(COST_CENTER_LABELS[item.costCenter])}, ${pdfSafe(MARGIN_TIER_LABELS[item.marginTier])}]`;
+      const right = `${fmtInternalAmount(raw, margined)} [${pdfSafe(COST_CENTER_LABELS[item.costCenter])}, ${pdfSafe(marginLabels[item.marginTier])}]`;
       doc.text(left, MARGIN_L + 2, y, { maxWidth: CONTENT_W * 0.55 });
       doc.text(right, PAGE_W_MM - MARGIN_R, y, { align: "right" });
       y += LINE_ITEM_ROW_MM;
@@ -882,13 +888,13 @@ function buildPdf(state: ConstructionState, audience: PdfAudience): jsPDF {
         ? it.dayRateOverrideUsd
         : state.gdtTime.rates[it.workGroup];
     const raw = Math.max(0, it.days) * rate;
-    const margined = raw * (1 + MARGIN_TIER_PCT[it.marginTier] / 100);
+    const margined = raw * (1 + marginPct[it.marginTier] / 100);
     beginBlock(LINE_ITEM_ROW_MM);
     const left = pdfSafe(
       `${it.label} (${it.days} days x ${fmtMoney(rate)}/d ${it.workGroup})`,
     );
     const cc = it.costCenter ?? "gdt";
-    const right = `${fmtInternalAmount(raw, margined)} [${pdfSafe(COST_CENTER_LABELS[cc])}, ${pdfSafe(MARGIN_TIER_LABELS[it.marginTier])}]`;
+    const right = `${fmtInternalAmount(raw, margined)} [${pdfSafe(COST_CENTER_LABELS[cc])}, ${pdfSafe(marginLabels[it.marginTier])}]`;
     doc.text(left, MARGIN_L + 2, y, { maxWidth: CONTENT_W * 0.6 });
     doc.text(right, PAGE_W_MM - MARGIN_R, y, { align: "right" });
     y += LINE_ITEM_ROW_MM;

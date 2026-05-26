@@ -41,19 +41,17 @@ import {
   seedPlatforms,
   seedTrenches,
 } from "@/domain/calculate/landPrep";
-import type { EquipmentResult } from "@/domain/calculate/equipment";
-import type { ManpowerResult } from "@/domain/calculate/manpower";
+import type { EquipmentResult, EquipmentRow } from "@/domain/calculate/equipment";
+import type { ManpowerResult, ManpowerRow } from "@/domain/calculate/manpower";
 import {
-  MANPOWER_DEFAULT_RATES_USD_H,
-  MANPOWER_TRADES,
   ManpowerError,
   calculateManpower,
+  defaultManpowerRow,
 } from "@/domain/calculate/manpower";
-import type { EquipmentRowInputs } from "@/domain/calculate/equipment";
-import { EQUIPMENT_DEFAULT_ROWS } from "@/domain/calculate/equipment";
 import {
   EquipmentError,
   calculateEquipment,
+  defaultEquipmentRow,
 } from "@/domain/calculate/equipment";
 import { getBlockType, getBlockNames } from "@/domain/blockTypes";
 import type {
@@ -74,7 +72,6 @@ import {
   aggregateGdtTime,
   aggregateLineItems,
   defaultGdtTime,
-  defaultGdtTimeRates,
   defaultLineItems,
 } from "@/domain/calculate/lineItems";
 import { findLineItemPreset } from "@/domain/calculate/lineItemPresets";
@@ -85,6 +82,11 @@ import {
   type DisciplineKey,
   type QuoteClassification,
 } from "@/domain/calculate/quoteRollup";
+import {
+  defaultPlannerConfig,
+  manpowerRateForTrade,
+  type PlannerConfig,
+} from "@/domain/plannerConfig";
 import { create } from "zustand";
 
 export type ToastMessage =
@@ -147,7 +149,7 @@ export interface ConstructionState {
     result: LandPrepResult | null;
   };
   manpower: {
-    trades: { workers: number; rateUsdH: number }[];
+    rows: ManpowerRow[];
     schedule: {
       days: number;
       hoursNormalPerDay: number;
@@ -163,7 +165,7 @@ export interface ConstructionState {
     result: ManpowerResult | null;
   };
   equipment: {
-    rows: EquipmentRowInputs[];
+    rows: EquipmentRow[];
     days: number;
     hoursPerDay: number;
     fuelPriceUsdL: number;
@@ -174,6 +176,8 @@ export interface ConstructionState {
     result: EquipmentResult | null;
   };
   disciplineClassifications: DisciplineClassifications;
+  /** Editable presets (margins, default rates, rebar levels, etc.). */
+  config: PlannerConfig;
 }
 
 export function emptyGeometry(): ConcreteGeometry {
@@ -185,16 +189,13 @@ export function emptyGeometry(): ConcreteGeometry {
   };
 }
 
-export const defaultEquipmentRows = (): EquipmentRowInputs[] =>
-  EQUIPMENT_DEFAULT_ROWS.map((r) => ({
-    name: r.name,
-    count: 0,
-    rateUsdH: r.rateUsdH,
-    fuelLH: r.fuelLH,
-    utilPct: 70,
-  }));
+export const defaultEquipmentRows = (): EquipmentRow[] =>
+  defaultPlannerConfig().equipmentPresets.map((preset) =>
+    defaultEquipmentRow(preset),
+  );
 
 export function createInitialState(): ConstructionState {
+  const config = defaultPlannerConfig();
   const firstBlockName = getBlockNames()[0] ?? "";
   const block = firstBlockName ? getBlockType(firstBlockName) : undefined;
 
@@ -210,7 +211,7 @@ export function createInitialState(): ConstructionState {
     reactors: defaultReactorConfig(),
     earthworksFromReactors: true,
     lineItems: defaultLineItems(),
-    gdtTime: { items: defaultGdtTime(), rates: defaultGdtTimeRates() },
+    gdtTime: { items: defaultGdtTime(), rates: { ...config.gdtDayRates } },
     breeze: {
       blockName: firstBlockName,
       costPerBlock: block?.defaultCostUsd ?? 0,
@@ -232,7 +233,7 @@ export function createInitialState(): ConstructionState {
       materials: {
         densityKgM3: 2400,
         costUsdM3: 60,
-        rebarKgM3: 100,
+        rebarKgM3: config.rebarDensityKgM3.medium,
         rebarCostUsdT: 640,
       },
       result: null,
@@ -249,10 +250,7 @@ export function createInitialState(): ConstructionState {
       result: null,
     },
     manpower: {
-      trades: [...MANPOWER_TRADES].map((_, i) => ({
-        workers: 0,
-        rateUsdH: MANPOWER_DEFAULT_RATES_USD_H[i] ?? 0,
-      })),
+      rows: [],
       schedule: {
         days: 30,
         hoursNormalPerDay: 8,
@@ -268,7 +266,7 @@ export function createInitialState(): ConstructionState {
       result: null,
     },
     equipment: {
-      rows: defaultEquipmentRows(),
+      rows: [],
       days: 30,
       hoursPerDay: 8,
       fuelPriceUsdL: 0.5,
@@ -279,6 +277,7 @@ export function createInitialState(): ConstructionState {
       result: null,
     },
     disciplineClassifications: defaultDisciplineClassifications(),
+    config,
   };
 }
 
@@ -312,8 +311,16 @@ export function computeSummaryTotals(s: ConstructionState): SummaryTotals {
   const manpowerCost = s.manpower.result?.grandTotalUsd ?? 0;
   const equipmentCost = s.equipment.result?.grandTotalUsd ?? 0;
 
-  const liBreak = aggregateLineItems(s.lineItems, s.reactors.count);
-  const timeBreak = aggregateGdtTime(s.gdtTime.items, s.gdtTime.rates);
+  const liBreak = aggregateLineItems(
+    s.lineItems,
+    s.reactors.count,
+    s.config.marginTierPct,
+  );
+  const timeBreak = aggregateGdtTime(
+    s.gdtTime.items,
+    s.gdtTime.rates,
+    s.config.marginTierPct,
+  );
   const rollup = computeQuoteRollup(s);
 
   return {
@@ -405,11 +412,16 @@ interface Store extends ConstructionState {
   removeTrenchGroup: (id: string) => void;
 
   setManpower: (partial: Partial<ConstructionState["manpower"]>) => void;
+  addManpowerRow: (trade?: string) => string;
+  patchManpowerRow: (id: string, patch: Partial<ManpowerRow>) => void;
+  removeManpowerRow: (id: string) => void;
   calculateManpower: () => void;
   resetManpower: () => void;
 
   setEquipment: (partial: Partial<ConstructionState["equipment"]>) => void;
-  updateEquipRow: (index: number, partial: Partial<EquipmentRowInputs>) => void;
+  addEquipmentRow: (presetIndex?: number) => string;
+  patchEquipmentRow: (id: string, patch: Partial<EquipmentRow>) => void;
+  removeEquipmentRow: (id: string) => void;
   calculateEquipment: () => void;
   resetEquipment: () => void;
 
@@ -417,6 +429,9 @@ interface Store extends ConstructionState {
     key: DisciplineKey,
     patch: Partial<QuoteClassification>,
   ) => void;
+
+  setPlannerConfig: (patch: Partial<PlannerConfig>) => void;
+  resetPlannerConfig: () => void;
 
   summaryTotals: () => SummaryTotals;
 }
@@ -452,6 +467,7 @@ export const useProjectStore = create<Store>((set, get) => ({
   replaceAll: (next) =>
     set(() => ({
       ...next,
+      config: next.config ?? defaultPlannerConfig(),
       disciplineClassifications:
         next.disciplineClassifications ?? defaultDisciplineClassifications(),
       toast: null,
@@ -597,8 +613,11 @@ export const useProjectStore = create<Store>((set, get) => ({
       },
     })),
   resetGdtTime: () =>
-    set(() => ({
-      gdtTime: { items: defaultGdtTime(), rates: defaultGdtTimeRates() },
+    set((s) => ({
+      gdtTime: {
+        items: defaultGdtTime(),
+        rates: { ...s.config.gdtDayRates },
+      },
     })),
 
   summaryTotals: () => computeSummaryTotals(get()),
@@ -610,6 +629,29 @@ export const useProjectStore = create<Store>((set, get) => ({
         [key]: { ...s.disciplineClassifications[key], ...patch },
       },
     })),
+
+  setPlannerConfig: (patch) =>
+    set((s) => ({
+      config: {
+        ...s.config,
+        ...patch,
+        marginTierPct: patch.marginTierPct
+          ? { ...s.config.marginTierPct, ...patch.marginTierPct }
+          : s.config.marginTierPct,
+        rebarDensityKgM3: patch.rebarDensityKgM3
+          ? { ...s.config.rebarDensityKgM3, ...patch.rebarDensityKgM3 }
+          : s.config.rebarDensityKgM3,
+        gdtDayRates: patch.gdtDayRates
+          ? { ...s.config.gdtDayRates, ...patch.gdtDayRates }
+          : s.config.gdtDayRates,
+        manpowerTradeRatesUsdH: patch.manpowerTradeRatesUsdH
+          ? { ...s.config.manpowerTradeRatesUsdH, ...patch.manpowerTradeRatesUsdH }
+          : s.config.manpowerTradeRatesUsdH,
+        equipmentPresets: patch.equipmentPresets ?? s.config.equipmentPresets,
+      },
+    })),
+  resetPlannerConfig: () =>
+    set(() => ({ config: defaultPlannerConfig() })),
 
   setBreeze: (partial) =>
     set((s) => ({
@@ -842,8 +884,7 @@ export const useProjectStore = create<Store>((set, get) => ({
       manpower: {
         ...s.manpower,
         ...partial,
-        trades:
-          partial.trades !== undefined ? partial.trades : s.manpower.trades,
+        rows: partial.rows !== undefined ? partial.rows : s.manpower.rows,
         schedule:
           partial.schedule !== undefined ? partial.schedule : s.manpower.schedule,
         overheads:
@@ -852,16 +893,37 @@ export const useProjectStore = create<Store>((set, get) => ({
             : s.manpower.overheads,
       },
     })),
+  addManpowerRow: (trade) => {
+    const cfg = get().config;
+    const tradeName = trade ?? "General Labourer";
+    const row = defaultManpowerRow(
+      tradeName,
+      manpowerRateForTrade(tradeName, cfg),
+    );
+    set((s) => ({
+      manpower: { ...s.manpower, rows: [...s.manpower.rows, row] },
+    }));
+    return row.id;
+  },
+  patchManpowerRow: (id, patch) =>
+    set((s) => ({
+      manpower: {
+        ...s.manpower,
+        rows: s.manpower.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      },
+    })),
+  removeManpowerRow: (id) =>
+    set((s) => ({
+      manpower: {
+        ...s.manpower,
+        rows: s.manpower.rows.filter((r) => r.id !== id),
+      },
+    })),
   calculateManpower: () => {
     const m = get().manpower;
     try {
-      const trades = [...MANPOWER_TRADES].map((trade, idx) => ({
-        trade,
-        workers: m.trades[idx]?.workers ?? 0,
-        rateUsdH: m.trades[idx]?.rateUsdH ?? 0,
-      }));
       const result = calculateManpower({
-        trades,
+        rows: m.rows,
         schedule: m.schedule,
         overheads: m.overheads,
       });
@@ -879,13 +941,31 @@ export const useProjectStore = create<Store>((set, get) => ({
 
   setEquipment: (partial) =>
     set((s) => ({ equipment: { ...s.equipment, ...partial } })),
-  updateEquipRow: (index, partial) =>
-    set((s) => {
-      const rows = s.equipment.rows.map((r, i) =>
-        i === index ? { ...r, ...partial } : r,
-      );
-      return { equipment: { ...s.equipment, rows } };
-    }),
+  addEquipmentRow: (presetIndex) => {
+    const preset =
+      presetIndex !== undefined
+        ? get().config.equipmentPresets[presetIndex]
+        : undefined;
+    const row = defaultEquipmentRow(preset);
+    set((s) => ({
+      equipment: { ...s.equipment, rows: [...s.equipment.rows, row] },
+    }));
+    return row.id;
+  },
+  patchEquipmentRow: (id, patch) =>
+    set((s) => ({
+      equipment: {
+        ...s.equipment,
+        rows: s.equipment.rows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      },
+    })),
+  removeEquipmentRow: (id) =>
+    set((s) => ({
+      equipment: {
+        ...s.equipment,
+        rows: s.equipment.rows.filter((r) => r.id !== id),
+      },
+    })),
   calculateEquipment: () => {
     const e = get().equipment;
     try {

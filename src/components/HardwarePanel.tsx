@@ -2,7 +2,7 @@ import { LineItemTable } from "@/components/planner/LineItemTable";
 
 export function HardwarePanel() {
   return (
-    <div className="mx-auto grid max-w-5xl gap-4">
+    <div className="mx-auto grid min-w-0 w-full max-w-6xl gap-4">
       <p className="text-sm text-zinc-400">
         Sections start empty. Pick a preset from the dropdown to add a typical line
         (with suggested unit cost and notes), or choose custom blank item to enter

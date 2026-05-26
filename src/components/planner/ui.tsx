@@ -244,8 +244,32 @@ export function GhostOptionalNumberInput(props: {
 /** Shared data-table chrome (matches CapEx line-item tables). */
 export const plannerTableMinWidth = "min-w-[760px]";
 
+/** Fixed column widths — use the same class on matching `PlannerTh` and `PlannerTd`. */
+export const plannerColOn = "w-12";
+export const plannerColNumericSm = "w-[5.5rem]";
+export const plannerColNumeric = "w-[7rem]";
+export const plannerColNumericLg = "w-[8.5rem]";
+export const plannerColActions = "w-16";
+export const plannerColSelect = "w-[8rem]";
+export const plannerColSelectWide = "w-[9rem]";
+
+/** Narrower columns for wide CapEx / line-item tables (9+ columns). */
+export const plannerColCapSelect = "w-[6.5rem]";
+export const plannerColCapSelectWide = "w-[7rem]";
+export const plannerColCapNumeric = "w-[6rem]";
+export const plannerColCapNumericSm = "w-[4.25rem]";
+export const plannerColCapNumericLg = "w-[7rem]";
+
 export function plannerTableClass(minWidth = plannerTableMinWidth) {
-  return clsx("w-full border-collapse text-sm", minWidth);
+  return clsx("w-full table-fixed border-collapse text-sm", minWidth);
+}
+
+/** Numeric input styled for fixed-width table columns (fills cell, centered text). */
+export function plannerTableNumericInputCls(className?: string) {
+  return clsx(
+    "w-full max-w-none rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-center text-zinc-100 outline-none ring-teal-500/70 focus-visible:ring-2 placeholder:text-zinc-500",
+    className,
+  );
 }
 
 export function PlannerThead({ children }: { children: ReactNode }) {
@@ -262,15 +286,17 @@ export function PlannerHeadRow({ children }: { children: ReactNode }) {
 
 export function PlannerTh(props: {
   children: ReactNode;
-  align?: "left" | "right";
+  align?: "left" | "center" | "right";
   className?: string;
 }) {
   const align = props.align ?? "left";
   return (
     <th
       className={clsx(
-        "py-2 pr-2 font-medium",
-        align === "right" ? "text-right" : "text-left",
+        "px-1 py-2 font-medium",
+        align === "center" ? "text-center"
+        : align === "right" ? "text-right"
+        : "text-left",
         props.className,
       )}
     >
@@ -279,16 +305,43 @@ export function PlannerTh(props: {
   );
 }
 
+export function PlannerTd(props: {
+  children: ReactNode;
+  align?: "left" | "center" | "right";
+  className?: string;
+}) {
+  const align = props.align ?? "left";
+  return (
+    <td
+      className={clsx(
+        "px-1 py-2 align-middle",
+        align === "center" ? "text-center"
+        : align === "right" ? "text-right"
+        : "text-left",
+        props.className,
+      )}
+    >
+      {props.children}
+    </td>
+  );
+}
+
 /** Table column header with explicit unit, e.g. "Length" + "(m)" => "Length (m)". */
 export function UnitTh(props: {
   label: string;
   unit: string;
   help?: string;
-  align?: "left" | "right";
+  align?: "left" | "center" | "right";
+  size?: "sm" | "md";
   className?: string;
 }) {
+  const colClass =
+    props.size === "sm" ? plannerColNumericSm : plannerColNumeric;
   return (
-    <PlannerTh align={props.align ?? "right"} className={props.className}>
+    <PlannerTh
+      align={props.align ?? "center"}
+      className={clsx(colClass, props.className)}
+    >
       {props.label} ({props.unit})
       {props.help ?
         <> <HelpIcon text={props.help} /></>

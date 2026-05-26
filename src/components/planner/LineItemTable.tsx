@@ -8,15 +8,22 @@ import {
   GhostNumberInput,
   HelpIcon,
   PlannerHeadRow,
+  PlannerTd,
   PlannerTh,
   PlannerThead,
   numInputCls,
+  plannerColActions,
+  plannerColCapNumeric,
+  plannerColCapNumericLg,
+  plannerColCapNumericSm,
+  plannerColCapSelect,
+  plannerColCapSelectWide,
+  plannerColOn,
   plannerTableClass,
+  plannerTableNumericInputCls,
 } from "@/components/planner/ui";
 import {
   COST_CENTER_LABELS,
-  MARGIN_TIER_LABELS,
-  MARGIN_TIER_PCT,
   lineItemRawCost,
   type CostCenter,
   type LineItem,
@@ -24,6 +31,7 @@ import {
   type LineItemMode,
   type MarginTier,
 } from "@/domain/calculate/lineItems";
+import { marginTierLabels } from "@/domain/plannerConfig";
 import { LINE_ITEM_PRESETS } from "@/domain/calculate/lineItemPresets";
 
 interface Props {
@@ -48,6 +56,11 @@ export function LineItemTable({ category, title, description }: Props) {
   const removeItem = useProjectStore((s) => s.removeLineItem);
   const addItem = useProjectStore((s) => s.addLineItem);
   const addFromPreset = useProjectStore((s) => s.addLineItemFromPreset);
+  const marginPct = useProjectStore((s) => s.config.marginTierPct);
+  const marginLabels = useMemo(
+    () => marginTierLabels(marginPct),
+    [marginPct],
+  );
 
   const presets = LINE_ITEM_PRESETS[category];
   const hasPresets = presets.length > 0;
@@ -58,11 +71,11 @@ export function LineItemTable({ category, title, description }: Props) {
   for (const item of items) {
     const c = lineItemRawCost(item, reactorCount);
     raw += c;
-    withMargin += c * (1 + MARGIN_TIER_PCT[item.marginTier] / 100);
+    withMargin += c * (1 + marginPct[item.marginTier] / 100);
   }
 
   return (
-    <section className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold text-teal-200">{title}</h2>
         <div className="text-xs text-zinc-400">
@@ -75,19 +88,24 @@ export function LineItemTable({ category, title, description }: Props) {
         <p className="-mt-2 mb-3 text-xs text-zinc-500">{description}</p>
       : null}
 
-      <div className="overflow-x-auto">
-        <table className={plannerTableClass()}>
+      <table className={plannerTableClass("min-w-0")}>
           <PlannerThead>
             <PlannerHeadRow>
-              <PlannerTh>On</PlannerTh>
-              <PlannerTh>Item</PlannerTh>
-              <PlannerTh>Mode</PlannerTh>
-              <PlannerTh align="right">Unit USD</PlannerTh>
-              <PlannerTh align="right">Qty</PlannerTh>
-              <PlannerTh>Cost center</PlannerTh>
-              <PlannerTh>Margin</PlannerTh>
-              <PlannerTh align="right">Raw / quote</PlannerTh>
-              <PlannerTh align="right" className="w-16">
+              <PlannerTh className={plannerColOn}>On</PlannerTh>
+              <PlannerTh className="min-w-0">Item</PlannerTh>
+              <PlannerTh className={plannerColCapSelect}>Mode</PlannerTh>
+              <PlannerTh align="center" className={plannerColCapNumeric}>
+                Unit USD
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColCapNumericSm}>
+                Qty
+              </PlannerTh>
+              <PlannerTh className={plannerColCapSelectWide}>Cost center</PlannerTh>
+              <PlannerTh className={plannerColCapSelect}>Margin</PlannerTh>
+              <PlannerTh align="center" className={plannerColCapNumericLg}>
+                Raw / quote
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColActions}>
                 <span className="sr-only">Actions</span>
               </PlannerTh>
             </PlannerHeadRow>
@@ -96,7 +114,7 @@ export function LineItemTable({ category, title, description }: Props) {
             {items.map((item) => {
               const rowCost = lineItemRawCost(item, reactorCount);
               const rowQuote =
-                rowCost * (1 + MARGIN_TIER_PCT[item.marginTier] / 100);
+                rowCost * (1 + marginPct[item.marginTier] / 100);
               return (
                 <tr
                   key={item.id}
@@ -105,7 +123,7 @@ export function LineItemTable({ category, title, description }: Props) {
                     !item.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -115,11 +133,11 @@ export function LineItemTable({ category, title, description }: Props) {
                       }
                       aria-label={`Enable ${item.label}`}
                     />
-                  </td>
-                  <td className="py-2 pr-2">
-                    <div className="flex items-center gap-2">
+                  </PlannerTd>
+                  <td className="min-w-0 px-1 py-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <input
-                        className={clsx(numInputCls(), "min-w-[220px]")}
+                        className={clsx(numInputCls(), "min-w-0 w-full max-w-none")}
                         type="text"
                         value={item.label}
                         onChange={(ev) =>
@@ -131,9 +149,9 @@ export function LineItemTable({ category, title, description }: Props) {
                       : null}
                     </div>
                   </td>
-                  <td className="py-2 pr-2">
+                  <td className={clsx("px-1 py-2", plannerColCapSelect)}>
                     <select
-                      className={clsx(numInputCls(), "max-w-[150px]")}
+                      className={clsx(numInputCls(), "w-full max-w-none text-xs")}
                       value={item.mode}
                       onChange={(ev) =>
                         patchItem(item.id, {
@@ -145,28 +163,28 @@ export function LineItemTable({ category, title, description }: Props) {
                       <option value="lump">{MODE_LABELS.lump}</option>
                     </select>
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColCapNumeric}>
                     <GhostNumberInput
-                      className="max-w-[120px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.01}
                       value={item.unitCostUsd}
                       onChange={(n) =>
                         patchItem(item.id, { unitCostUsd: n })
                       }
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColCapNumericSm}>
                     <GhostNumberInput
-                      className="max-w-[80px] text-right"
+                      className={plannerTableNumericInputCls()}
                       min={0}
                       integer
                       value={item.qty}
                       onChange={(n) => patchItem(item.id, { qty: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2">
+                  </PlannerTd>
+                  <td className={clsx("px-1 py-2", plannerColCapSelectWide)}>
                     <select
-                      className={clsx(numInputCls(), "max-w-[140px]")}
+                      className={clsx(numInputCls(), "w-full max-w-none text-xs")}
                       value={item.costCenter}
                       onChange={(ev) =>
                         patchItem(item.id, {
@@ -180,9 +198,9 @@ export function LineItemTable({ category, title, description }: Props) {
                       </option>
                     </select>
                   </td>
-                  <td className="py-2 pr-2">
+                  <td className={clsx("px-1 py-2", plannerColCapSelect)}>
                     <select
-                      className={clsx(numInputCls(), "max-w-[150px]")}
+                      className={clsx(numInputCls(), "w-full max-w-none text-xs")}
                       value={item.marginTier}
                       onChange={(ev) =>
                         patchItem(item.id, {
@@ -192,18 +210,18 @@ export function LineItemTable({ category, title, description }: Props) {
                     >
                       {(["none", "low", "med", "high"] as const).map((tier) => (
                         <option key={tier} value={tier}>
-                          {MARGIN_TIER_LABELS[tier]}
+                          {marginLabels[tier]}
                         </option>
                       ))}
                     </select>
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColCapNumericLg}>
                     <div className="font-mono text-zinc-300">{usd(rowCost)}</div>
                     <div className="font-mono text-xs text-teal-300">
                       {usd(rowQuote)}
                     </div>
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -211,7 +229,7 @@ export function LineItemTable({ category, title, description }: Props) {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               );
             })}
@@ -226,7 +244,6 @@ export function LineItemTable({ category, title, description }: Props) {
             : null}
           </tbody>
         </table>
-      </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-2">
         {hasPresets ?

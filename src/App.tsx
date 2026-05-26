@@ -4,7 +4,9 @@ import { PlannerShell } from "@/components/PlannerShell";
 export default function App() {
   return (
     <ErrorBoundary>
-      <PlannerShell />
+      <div className="h-full min-h-0 overflow-hidden">
+        <PlannerShell />
+      </div>
     </ErrorBoundary>
   );
 }

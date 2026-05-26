@@ -1,10 +1,10 @@
 import clsx from "clsx";
+import { useMemo } from "react";
 
 import { usd } from "@/components/planner/formatters";
 import { numInputCls } from "@/components/planner/ui";
 import {
   COST_CENTER_LABELS,
-  MARGIN_TIER_LABELS,
   type CostCenter,
   type MarginTier,
 } from "@/domain/calculate/lineItems";
@@ -12,6 +12,8 @@ import {
   classifyAmount,
   type QuoteClassification,
 } from "@/domain/calculate/quoteRollup";
+import { marginTierLabels } from "@/domain/plannerConfig";
+import { useProjectStore } from "@/store/projectStore";
 
 interface Props {
   label?: string;
@@ -28,7 +30,12 @@ export function QuoteClassificationBar({
   onChange,
   compact = false,
 }: Props) {
-  const amounts = classifyAmount(rawUsd, value);
+  const marginPct = useProjectStore((s) => s.config.marginTierPct);
+  const marginLabels = useMemo(
+    () => marginTierLabels(marginPct),
+    [marginPct],
+  );
+  const amounts = classifyAmount(rawUsd, value, marginPct);
 
   return (
     <div
@@ -76,7 +83,7 @@ export function QuoteClassificationBar({
           >
             {(["none", "low", "med", "high"] as const).map((tier) => (
               <option key={tier} value={tier}>
-                {MARGIN_TIER_LABELS[tier]}
+                {marginLabels[tier]}
               </option>
             ))}
           </select>

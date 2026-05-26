@@ -8,6 +8,37 @@ export interface ConcreteMaterials {
   rebarCostUsdT: number;
 }
 
+/** Typical rebar content levels (kg steel per m³ of concrete). */
+export const REBAR_DENSITY_PRESETS = {
+  low: {
+    label: "Low",
+    kgM3: 80,
+    help: "Lightly reinforced — thin slabs, minimum mesh, simple footings (~80 kg/m³).",
+  },
+  medium: {
+    label: "Medium",
+    kgM3: 100,
+    help: "Typical site concrete — standard footings, slabs and general pours (~100 kg/m³).",
+  },
+  high: {
+    label: "High",
+    kgM3: 150,
+    help: "Heavily reinforced — walls, loaded footings, retaining elements (~150 kg/m³).",
+  },
+} as const;
+
+export type RebarDensityPresetId = keyof typeof REBAR_DENSITY_PRESETS;
+
+export function rebarDensityPresetForValue(kgM3: number): RebarDensityPresetId | "custom" {
+  for (const [id, preset] of Object.entries(REBAR_DENSITY_PRESETS) as [
+    RebarDensityPresetId,
+    (typeof REBAR_DENSITY_PRESETS)[RebarDensityPresetId],
+  ][]) {
+    if (kgM3 === preset.kgM3) return id;
+  }
+  return "custom";
+}
+
 /** @deprecated Legacy single-element geometry blob — used only for migration. */
 export interface ConcreteGeometry {
   slab: {

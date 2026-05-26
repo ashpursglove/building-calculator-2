@@ -17,10 +17,14 @@ export const MANPOWER_DEFAULT_RATES_USD_H = [
   5.0, 7.0, 7.5, 6.5, 6.5, 8.0, 7.5, 8.0, 10.0, 12.0, 9.0,
 ] as const;
 
-export interface TradeLine {
+export interface ManpowerRow {
+  id: string;
   trade: string;
   workers: number;
   rateUsdH: number;
+  /** When null, use schedule.days for this row. */
+  daysOverride: number | null;
+  enabled: boolean;
 }
 
 export interface ManpowerSchedule {
@@ -58,12 +62,38 @@ export class ManpowerError extends Error {
   }
 }
 
+export function defaultRateForTrade(trade: string): number {
+  const idx = MANPOWER_TRADES.indexOf(trade as (typeof MANPOWER_TRADES)[number]);
+  return idx >= 0 ? (MANPOWER_DEFAULT_RATES_USD_H[idx] ?? 5) : 5;
+}
+
+export function defaultManpowerRow(
+  trade = "General Labourer",
+  rateUsdH?: number,
+): ManpowerRow {
+  return {
+    id: `mp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    trade,
+    workers: 1,
+    rateUsdH: rateUsdH ?? defaultRateForTrade(trade),
+    daysOverride: null,
+    enabled: true,
+  };
+}
+
+export function effectiveManpowerDays(
+  row: ManpowerRow,
+  scheduleDays: number,
+): number {
+  return row.daysOverride ?? scheduleDays;
+}
+
 export function calculateManpower(opts: {
-  trades: TradeLine[];
+  rows: ManpowerRow[];
   schedule: ManpowerSchedule;
   overheads: ManpowerOverheads;
 }): ManpowerResult {
-  const { trades, schedule, overheads } = opts;
+  const { rows, schedule, overheads } = opts;
 
   const { days, hoursNormalPerDay, hoursOtPerDay, otFactor } = schedule;
   const {
@@ -93,28 +123,34 @@ export function calculateManpower(opts: {
   const lines: string[] = [];
 
   lines.push(
-    `Schedule: ${days} days, ${hoursNormalPerDay.toFixed(1)} h/day normal, ` +
+    `Default programme: ${days} days, ${hoursNormalPerDay.toFixed(1)} h/day normal, ` +
       `${hoursOtPerDay.toFixed(1)} h/day overtime at x${otFactor.toFixed(2)}.`,
   );
   lines.push("Per-trade details:");
-  lines.push("Trade | Workers | Man-hours | Labour cost (USD)");
-  lines.push("-".repeat(60));
+  lines.push("Trade | Workers | Days | Man-hours | Labour cost (USD)");
+  lines.push("-".repeat(72));
 
-  for (const row of trades) {
+  for (const row of rows) {
+    if (!row.enabled) continue;
+
     const n = Math.trunc(row.workers);
     const rate = row.rateUsdH;
+    const trade = row.trade.trim() || "Unnamed trade";
+    const rowDays = effectiveManpowerDays(row, days);
 
-    if (n <= 0 || rate <= 0) continue;
+    if (n <= 0 || rate <= 0 || rowDays <= 0) continue;
 
-    const mh = n * days * (hoursNormalPerDay + hoursOtPerDay);
-    const normal = n * days * hoursNormalPerDay * rate;
-    const ot = n * days * hoursOtPerDay * rate * otFactor;
+    const mh = n * rowDays * (hoursNormalPerDay + hoursOtPerDay);
+    const normal = n * rowDays * hoursNormalPerDay * rate;
+    const ot = n * rowDays * hoursOtPerDay * rate * otFactor;
     const tradeCost = normal + ot;
 
     totalManhours += mh;
     totalLabourCost += tradeCost;
+    const daysNote =
+      row.daysOverride !== null ? `${rowDays}` : `${rowDays} (default)`;
     lines.push(
-      `${row.trade} | ${n} | ${mh.toFixed(1)} h | $${tradeCost.toLocaleString(undefined, {
+      `${trade} | ${n} | ${daysNote} | ${mh.toFixed(1)} h | $${tradeCost.toLocaleString(undefined, {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`,

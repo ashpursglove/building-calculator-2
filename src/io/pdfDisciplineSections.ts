@@ -4,7 +4,8 @@
 
 import type { jsPDF } from "jspdf";
 
-import { MANPOWER_TRADES } from "@/domain/calculate/manpower";
+import { effectiveManpowerDays } from "@/domain/calculate/manpower";
+import { effectiveEquipmentDays } from "@/domain/calculate/equipment";
 import type { ConstructionState } from "@/store/projectStore";
 
 import {
@@ -88,7 +89,7 @@ export function renderManpowerSection(
   const { schedule, overheads } = mp;
   let ty = drawParamGrid(doc, x, y, w, [
     {
-      label: "Programme",
+      label: "Default programme",
       value: `${schedule.days} days, ${schedule.hoursNormalPerDay} h/day normal, ${schedule.hoursOtPerDay} h/day OT (x${schedule.otFactor.toFixed(2)})`,
     },
     {
@@ -99,30 +100,33 @@ export function renderManpowerSection(
   ty += 2;
 
   const tableRows: string[][] = [];
-  for (let i = 0; i < MANPOWER_TRADES.length; i++) {
-    const trade = MANPOWER_TRADES[i]!;
-    const t = mp.trades[i];
-    const workers = Math.max(0, Math.trunc(t?.workers ?? 0));
-    const rate = t?.rateUsdH ?? 0;
-    if (workers <= 0 || rate <= 0) continue;
+  for (const row of mp.rows) {
+    if (!row.enabled) continue;
+
+    const workers = Math.max(0, Math.trunc(row.workers));
+    const rate = row.rateUsdH;
+    const rowDays = effectiveManpowerDays(row, schedule.days);
+    if (workers <= 0 || rate <= 0 || rowDays <= 0) continue;
 
     const mh =
       workers *
-      schedule.days *
+      rowDays *
       (schedule.hoursNormalPerDay + schedule.hoursOtPerDay);
     const normal =
-      workers * schedule.days * schedule.hoursNormalPerDay * rate;
+      workers * rowDays * schedule.hoursNormalPerDay * rate;
     const ot =
       workers *
-      schedule.days *
+      rowDays *
       schedule.hoursOtPerDay *
       rate *
       schedule.otFactor;
     const labour = normal + ot;
+    const daysLabel = String(rowDays);
 
     tableRows.push([
-      trade,
+      row.trade.trim() || "Unnamed trade",
       String(workers),
+      daysLabel,
       fmtMoneyPdf(rate),
       `${mh.toFixed(1)} h`,
       fmtMoneyPdf(labour),
@@ -130,11 +134,12 @@ export function renderManpowerSection(
   }
 
   const cols: PdfColumn[] = [
-    { header: "Trade", widthMm: 62, align: "left" },
-    { header: "Workers", widthMm: 18, align: "right" },
-    { header: "Rate/h", widthMm: 24, align: "right" },
-    { header: "Man-hours", widthMm: 26, align: "right" },
-    { header: "Labour (USD)", widthMm: 30, align: "right" },
+    { header: "Trade", widthMm: 48, align: "left" },
+    { header: "Workers", widthMm: 16, align: "right" },
+    { header: "Days", widthMm: 18, align: "right" },
+    { header: "Rate/h", widthMm: 22, align: "right" },
+    { header: "Man-hours", widthMm: 24, align: "right" },
+    { header: "Labour (USD)", widthMm: 28, align: "right" },
   ];
 
   ty = drawPdfTable(doc, {
@@ -144,7 +149,7 @@ export function renderManpowerSection(
     columns: cols,
     rows: tableRows,
     emptyMessage:
-      "No trades with workers assigned — enter headcount on the Manpower tab and Calculate.",
+      "No trades on the list — add crew lines on the Manpower tab and Calculate.",
   });
 
   if (mp.result) {
@@ -202,11 +207,10 @@ export function renderEquipmentSection(
   doc.setFontSize(8.5);
   doc.setTextColor(...PDF_THEME.body);
 
-  const scheduleHours = eq.days * eq.hoursPerDay;
   let ty = drawParamGrid(doc, x, y, w, [
     {
-      label: "Schedule",
-      value: `${eq.days} calendar days x ${eq.hoursPerDay} productive h/day (${scheduleHours.toFixed(1)} h per unit)`,
+      label: "Default programme",
+      value: `${eq.days} calendar days x ${eq.hoursPerDay} productive h/day`,
     },
     {
       label: "Fuel price",
@@ -222,12 +226,16 @@ export function renderEquipmentSection(
   const tableRows: string[][] = [];
   for (let i = 0; i < eq.rows.length; i++) {
     const row = eq.rows[i]!;
+    if (!row.enabled) continue;
+
     const name = row.name.trim() || `Item ${i + 1}`;
     const count = Math.max(0, Math.trunc(row.count));
     const rate = row.rateUsdH;
     const util = row.utilPct;
+    const rowDays = effectiveEquipmentDays(row, eq.days);
+    const scheduleHours = rowDays * eq.hoursPerDay;
 
-    if (count <= 0 || rate <= 0 || util <= 0 || eq.hoursPerDay <= 0) {
+    if (count <= 0 || rate <= 0 || util <= 0 || eq.hoursPerDay <= 0 || rowDays <= 0) {
       continue;
     }
 
@@ -236,10 +244,12 @@ export function renderEquipmentSection(
     const hire = hours * rate;
     const fuelL = hours * row.fuelLH;
     const fuelCost = fuelL * eq.fuelPriceUsdL;
+    const daysLabel = String(rowDays);
 
     tableRows.push([
       name,
       String(count),
+      daysLabel,
       `${util.toFixed(0)}%`,
       `${hours.toFixed(1)} h`,
       `${fuelL.toFixed(1)} L`,
@@ -249,13 +259,14 @@ export function renderEquipmentSection(
   }
 
   const cols: PdfColumn[] = [
-    { header: "Plant", widthMm: 44, align: "left" },
-    { header: "Units", widthMm: 14, align: "right" },
-    { header: "Util", widthMm: 14, align: "right" },
-    { header: "Hours", widthMm: 18, align: "right" },
-    { header: "Fuel (L)", widthMm: 18, align: "right" },
-    { header: "Hire (USD)", widthMm: 26, align: "right" },
-    { header: "Fuel (USD)", widthMm: 26, align: "right" },
+    { header: "Plant", widthMm: 38, align: "left" },
+    { header: "Units", widthMm: 12, align: "right" },
+    { header: "Days", widthMm: 14, align: "right" },
+    { header: "Util", widthMm: 12, align: "right" },
+    { header: "Hours", widthMm: 16, align: "right" },
+    { header: "Fuel (L)", widthMm: 16, align: "right" },
+    { header: "Hire (USD)", widthMm: 24, align: "right" },
+    { header: "Fuel (USD)", widthMm: 24, align: "right" },
   ];
 
   ty = drawPdfTable(doc, {
@@ -265,7 +276,7 @@ export function renderEquipmentSection(
     columns: cols,
     rows: tableRows,
     emptyMessage:
-      "No plant with units, rate and utilisation — configure the fleet on the Equipment tab and Calculate.",
+      "No plant on the list — add fleet lines on the Equipment tab and Calculate.",
     fontSize: 7.2,
   });
 

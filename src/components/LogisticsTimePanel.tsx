@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { useMemo } from "react";
 
 import { useProjectStore } from "@/store/projectStore";
 import { usd } from "@/components/planner/formatters";
@@ -11,19 +12,27 @@ import {
   GhostNumberInput,
   GhostOptionalNumberInput,
   PlannerHeadRow,
+  PlannerTd,
   PlannerTh,
   PlannerThead,
   numInputCls,
+  plannerColActions,
+  plannerColCapNumeric,
+  plannerColCapNumericLg,
+  plannerColCapNumericSm,
+  plannerColCapSelect,
+  plannerColCapSelectWide,
+  plannerColOn,
   plannerTableClass,
+  plannerTableNumericInputCls,
 } from "@/components/planner/ui";
 import {
   COST_CENTER_LABELS,
-  MARGIN_TIER_LABELS,
-  MARGIN_TIER_PCT,
   type CostCenter,
   type GdtWorkGroup,
   type MarginTier,
 } from "@/domain/calculate/lineItems";
+import { marginTierLabels } from "@/domain/plannerConfig";
 
 const WORK_GROUPS: GdtWorkGroup[] = ["Engineering", "Site Ops", "Bio Ops"];
 
@@ -44,7 +53,7 @@ const OVERRIDE_HELP =
 
 export function LogisticsTimePanel() {
   return (
-    <div className="mx-auto grid max-w-5xl gap-4">
+    <div className="mx-auto grid min-w-0 w-full max-w-6xl gap-4">
       <LineItemTable
         category="logistics"
         title="Logistics & travel"
@@ -67,6 +76,11 @@ function GdtTimeSection() {
   const add = useProjectStore((s) => s.addGdtTimeItem);
   const remove = useProjectStore((s) => s.removeGdtTimeItem);
   const setRate = useProjectStore((s) => s.setGdtTimeRate);
+  const marginPct = useProjectStore((s) => s.config.marginTierPct);
+  const marginLabels = useMemo(
+    () => marginTierLabels(marginPct),
+    [marginPct],
+  );
 
   let totalDays = 0;
   let raw = 0;
@@ -81,11 +95,11 @@ function GdtTimeSection() {
     const cost = days * rate;
     totalDays += days;
     raw += cost;
-    withMargin += cost * (1 + MARGIN_TIER_PCT[item.marginTier] / 100);
+    withMargin += cost * (1 + marginPct[item.marginTier] / 100);
   }
 
   return (
-    <section className="rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/50 p-4">
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-base font-semibold text-teal-200">
           GDT internal time
@@ -112,25 +126,26 @@ function GdtTimeSection() {
         </div>
       </Panel>
 
-      <div className="mt-4 overflow-x-auto">
-        <table className={plannerTableClass()}>
+      <table className={clsx("mt-4", plannerTableClass("min-w-0"))}>
           <PlannerThead>
             <PlannerHeadRow>
-              <PlannerTh>On</PlannerTh>
-              <PlannerTh>
+              <PlannerTh className={plannerColOn}>On</PlannerTh>
+              <PlannerTh className="min-w-0">
                 Task <HelpIcon text={TASK_HELP} />
               </PlannerTh>
-              <PlannerTh align="right">
+              <PlannerTh align="center" className={plannerColCapNumericSm}>
                 Days <HelpIcon text={DAYS_HELP} />
               </PlannerTh>
-              <PlannerTh>Work group</PlannerTh>
-              <PlannerTh align="right">
+              <PlannerTh className={plannerColCapSelectWide}>Work group</PlannerTh>
+              <PlannerTh align="center" className={plannerColCapNumeric}>
                 Override $/day <HelpIcon text={OVERRIDE_HELP} />
               </PlannerTh>
-              <PlannerTh>Cost center</PlannerTh>
-              <PlannerTh>Margin</PlannerTh>
-              <PlannerTh align="right">Raw / quote</PlannerTh>
-              <PlannerTh align="right" className="w-16">
+              <PlannerTh className={plannerColCapSelectWide}>Cost center</PlannerTh>
+              <PlannerTh className={plannerColCapSelect}>Margin</PlannerTh>
+              <PlannerTh align="center" className={plannerColCapNumericLg}>
+                Raw / quote
+              </PlannerTh>
+              <PlannerTh align="center" className={plannerColActions}>
                 <span className="sr-only">Actions</span>
               </PlannerTh>
             </PlannerHeadRow>
@@ -142,7 +157,7 @@ function GdtTimeSection() {
                   item.dayRateOverrideUsd
                 : rates[item.workGroup];
               const raw = Math.max(0, item.days) * rate;
-              const sub = raw * (1 + MARGIN_TIER_PCT[item.marginTier] / 100);
+              const sub = raw * (1 + marginPct[item.marginTier] / 100);
               return (
                 <tr
                   key={item.id}
@@ -151,7 +166,7 @@ function GdtTimeSection() {
                     !item.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -161,10 +176,10 @@ function GdtTimeSection() {
                       }
                       aria-label={`Enable ${item.label}`}
                     />
-                  </td>
-                  <td className="py-2 pr-2">
+                  </PlannerTd>
+                  <td className="min-w-0 px-1 py-2">
                     <input
-                      className={clsx(numInputCls(), "min-w-[240px]")}
+                      className={clsx(numInputCls(), "min-w-0 w-full max-w-none")}
                       type="text"
                       value={item.label}
                       onChange={(ev) =>
@@ -172,18 +187,18 @@ function GdtTimeSection() {
                       }
                     />
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColCapNumericSm}>
                     <GhostNumberInput
-                      className="max-w-[80px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.5}
                       min={0}
                       value={item.days}
                       onChange={(n) => patch(item.id, { days: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2">
+                  </PlannerTd>
+                  <td className={clsx("px-1 py-2", plannerColCapSelectWide)}>
                     <select
-                      className={clsx(numInputCls(), "max-w-[160px]")}
+                      className={clsx(numInputCls(), "w-full max-w-none text-xs")}
                       value={item.workGroup}
                       onChange={(ev) =>
                         patch(item.id, {
@@ -198,9 +213,9 @@ function GdtTimeSection() {
                       ))}
                     </select>
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColCapNumeric}>
                     <GhostOptionalNumberInput
-                      className="max-w-[120px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={1}
                       min={0}
                       value={item.dayRateOverrideUsd}
@@ -208,10 +223,10 @@ function GdtTimeSection() {
                         patch(item.id, { dayRateOverrideUsd: n })
                       }
                     />
-                  </td>
-                  <td className="py-2 pr-2">
+                  </PlannerTd>
+                  <td className={clsx("px-1 py-2", plannerColCapSelectWide)}>
                     <select
-                      className={clsx(numInputCls(), "max-w-[130px]")}
+                      className={clsx(numInputCls(), "w-full max-w-none text-xs")}
                       value={item.costCenter}
                       onChange={(ev) =>
                         patch(item.id, {
@@ -225,9 +240,9 @@ function GdtTimeSection() {
                       </option>
                     </select>
                   </td>
-                  <td className="py-2 pr-2">
+                  <td className={clsx("px-1 py-2", plannerColCapSelect)}>
                     <select
-                      className={clsx(numInputCls(), "max-w-[150px]")}
+                      className={clsx(numInputCls(), "w-full max-w-none text-xs")}
                       value={item.marginTier}
                       onChange={(ev) =>
                         patch(item.id, {
@@ -237,16 +252,16 @@ function GdtTimeSection() {
                     >
                       {(["none", "low", "med", "high"] as const).map((tier) => (
                         <option key={tier} value={tier}>
-                          {MARGIN_TIER_LABELS[tier]}
+                          {marginLabels[tier]}
                         </option>
                       ))}
                     </select>
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColCapNumericLg}>
                     <div className="font-mono text-zinc-300">{usd(raw)}</div>
                     <div className="font-mono text-xs text-teal-300">{usd(sub)}</div>
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -254,7 +269,7 @@ function GdtTimeSection() {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               );
             })}
@@ -267,7 +282,6 @@ function GdtTimeSection() {
             : null}
           </tbody>
         </table>
-      </div>
 
       <div className="mt-3 flex gap-2">
         <Btn onClick={() => add()}>+ Add task</Btn>

@@ -1,21 +1,24 @@
 import type { ConstructionState } from "@/store/projectStore";
 import {
   createInitialState,
-  defaultEquipmentRows,
   emptyGeometry,
 } from "@/store/projectStore";
 import {
   MANPOWER_DEFAULT_RATES_USD_H,
   MANPOWER_TRADES,
+  defaultManpowerRow,
+  type ManpowerRow,
 } from "@/domain/calculate/manpower";
+import type { EquipmentRow } from "@/domain/calculate/equipment";
 import {
   LINE_ITEM_CATEGORY_REMAP,
   LINE_ITEM_RETIRED_IDS,
   defaultGdtTime,
-  defaultGdtTimeRates,
   defaultLineItems,
+  type CostCenter,
   type GdtTimeItem,
   type LineItem,
+  type MarginTier,
 } from "@/domain/calculate/lineItems";
 import {
   defaultBreezeArcGroup,
@@ -48,7 +51,11 @@ import {
   type DisciplineClassifications,
   type DisciplineKey,
 } from "@/domain/calculate/quoteRollup";
-import type { CostCenter, MarginTier } from "@/domain/calculate/lineItems";
+import {
+  coercePlannerConfig,
+  defaultPlannerConfig,
+  type PlannerConfig,
+} from "@/domain/plannerConfig";
 
 /**
  * On-disk `.gctp.json` (GDT Construction project).
@@ -59,11 +66,14 @@ const SUPPORTED_VERSIONS = [1, 2, 3, 4] as const;
 
 interface EquipmentPersistBlob {
   rows: {
+    id?: string;
     name: string;
     count: number;
     rateUsdH: number;
     fuelLH: number;
     utilPct: number;
+    daysOverride?: number | null;
+    enabled?: boolean;
   }[];
   days: number;
   hoursPerDay: number;
@@ -74,6 +84,10 @@ interface EquipmentPersistBlob {
   miscPlantUsd: number;
   result: ConstructionState["equipment"]["result"];
 }
+
+type LegacyManpowerBlob = ConstructionState["manpower"] & {
+  trades?: { workers: number; rateUsdH: number }[];
+};
 
 export interface ConstructionProjectFileV4 {
   version: typeof LATEST_VERSION;
@@ -89,6 +103,7 @@ export interface ConstructionProjectFileV4 {
   land: ConstructionState["land"];
   manpower: ConstructionState["manpower"];
   equipmentPersist: EquipmentPersistBlob;
+  plannerConfig?: PlannerConfig;
 }
 
 /** @deprecated Use ConstructionProjectFileV4 */
@@ -137,6 +152,7 @@ export function serialiseFromState(state: ConstructionState): string {
       miscPlantUsd: state.equipment.miscPlantUsd,
       result: state.equipment.result ? clone(state.equipment.result) : null,
     },
+    plannerConfig: clone(state.config),
   };
   return JSON.stringify(file, null, 2);
 }
@@ -202,6 +218,7 @@ export function parseToState(text: string): ConstructionState {
             result: base.equipment.result,
           } satisfies EquipmentPersistBlob),
       ),
+      config: coercePlannerConfig(parsed.plannerConfig),
       toast: null,
     };
   } catch (e) {
@@ -303,8 +320,9 @@ function coerceLineItems(items: unknown): LineItem[] {
 }
 
 function coerceGdtTime(blob: unknown): ConstructionState["gdtTime"] {
+  const defaultRates = defaultPlannerConfig().gdtDayRates;
   if (!blob || typeof blob !== "object") {
-    return { items: defaultGdtTime(), rates: defaultGdtTimeRates() };
+    return { items: defaultGdtTime(), rates: { ...defaultRates } };
   }
   const o = blob as Record<string, unknown>;
   const ratesRaw = o.rates;
@@ -313,18 +331,18 @@ function coerceGdtTime(blob: unknown): ConstructionState["gdtTime"] {
       ? {
           Engineering: numericOr(
             (ratesRaw as Record<string, unknown>).Engineering,
-            defaultGdtTimeRates().Engineering,
+            defaultRates.Engineering,
           ),
           "Site Ops": numericOr(
             (ratesRaw as Record<string, unknown>)["Site Ops"],
-            defaultGdtTimeRates()["Site Ops"],
+            defaultRates["Site Ops"],
           ),
           "Bio Ops": numericOr(
             (ratesRaw as Record<string, unknown>)["Bio Ops"],
-            defaultGdtTimeRates()["Bio Ops"],
+            defaultRates["Bio Ops"],
           ),
         }
-      : defaultGdtTimeRates();
+      : { ...defaultRates };
 
   const items: GdtTimeItem[] = [];
   if (Array.isArray(o.items)) {
@@ -767,32 +785,93 @@ function coerceConcrete(raw: unknown): ConstructionState["concrete"] {
 }
 
 function coerceManpower(
-  m: ConstructionState["manpower"],
+  m: LegacyManpowerBlob,
 ): ConstructionState["manpower"] {
+  const base = createInitialState().manpower;
   const copy = clone(m);
-  while (copy.trades.length < MANPOWER_TRADES.length) {
-    const i = copy.trades.length;
-    copy.trades.push({
-      workers: 0,
-      rateUsdH: MANPOWER_DEFAULT_RATES_USD_H[i] ?? 5,
-    });
+
+  let rows: ManpowerRow[] = [];
+  if (Array.isArray(copy.rows) && copy.rows.length > 0) {
+    rows = copy.rows.map((r, i) => ({
+      id: String(r.id ?? `mp-${i}`),
+      trade: String(r.trade ?? "General Labourer"),
+      workers: Math.max(0, Math.trunc(Number(r.workers) || 0)),
+      rateUsdH: Number(r.rateUsdH) || defaultManpowerRow(r.trade).rateUsdH,
+      daysOverride:
+        r.daysOverride === null || r.daysOverride === undefined ?
+          null
+        : Number(r.daysOverride) || null,
+      enabled: r.enabled !== false,
+    }));
+  } else if (Array.isArray(copy.trades)) {
+    for (let i = 0; i < copy.trades.length; i++) {
+      const slot = copy.trades[i];
+      const workers = Math.max(0, Math.trunc(Number(slot?.workers) || 0));
+      if (workers <= 0) continue;
+      rows.push({
+        id: `mp-${i}`,
+        trade: MANPOWER_TRADES[i] ?? `Trade ${i + 1}`,
+        workers,
+        rateUsdH:
+          Number(slot?.rateUsdH) || MANPOWER_DEFAULT_RATES_USD_H[i] || 5,
+        daysOverride: null,
+        enabled: true,
+      });
+    }
   }
-  return copy;
+
+  return {
+    rows,
+    schedule: {
+      days: numericOr(copy.schedule?.days, base.schedule.days),
+      hoursNormalPerDay: numericOr(
+        copy.schedule?.hoursNormalPerDay,
+        base.schedule.hoursNormalPerDay,
+      ),
+      hoursOtPerDay: numericOr(
+        copy.schedule?.hoursOtPerDay,
+        base.schedule.hoursOtPerDay,
+      ),
+      otFactor: numericOr(copy.schedule?.otFactor, base.schedule.otFactor),
+    },
+    overheads: {
+      mobilisationUsd: numericOr(
+        copy.overheads?.mobilisationUsd,
+        base.overheads.mobilisationUsd,
+      ),
+      demobilisationUsd: numericOr(
+        copy.overheads?.demobilisationUsd,
+        base.overheads.demobilisationUsd,
+      ),
+      dailyOverheadUsd: numericOr(
+        copy.overheads?.dailyOverheadUsd,
+        base.overheads.dailyOverheadUsd,
+      ),
+      miscUsd: numericOr(copy.overheads?.miscUsd, base.overheads.miscUsd),
+    },
+    result: copy.result ? clone(copy.result) : null,
+  };
 }
 
 function coerceEquipment(
   blob: EquipmentPersistBlob,
 ): ConstructionState["equipment"] {
-  const rows =
+  const rows: EquipmentRow[] =
     blob.rows?.length
-      ? blob.rows.map((r) => ({
+      ? blob.rows.map((r, i) => ({
+          id: String(r.id ?? `eq-${i}`),
           name: String(r.name ?? ""),
           count: Number(r.count) || 0,
           rateUsdH: Number(r.rateUsdH) || 0,
           fuelLH: Number(r.fuelLH) || 0,
           utilPct: Number(r.utilPct) || 0,
+          daysOverride:
+            r.daysOverride === null || r.daysOverride === undefined ?
+              null
+            : Number(r.daysOverride) || null,
+          enabled: r.enabled !== false,
         }))
-      : defaultEquipmentRows();
+      : [];
 
   return {
     rows,

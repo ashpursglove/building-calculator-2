@@ -7,8 +7,8 @@ import { QuoteTotalsBanner } from "@/components/planner/QuoteTotalsBanner";
 import { Panel } from "@/components/planner/ui";
 import {
   COST_CENTER_LABELS,
-  MARGIN_TIER_LABELS,
 } from "@/domain/calculate/lineItems";
+import { marginTierLabels } from "@/domain/plannerConfig";
 import {
   computeQuoteRollup,
   executiveQuoteLines,
@@ -31,7 +31,13 @@ export function SummarySection(props: { filePath?: string | null }) {
       gdtTime: s.gdtTime,
       reactors: s.reactors,
       disciplineClassifications: s.disciplineClassifications,
+      config: s.config,
     })),
+  );
+
+  const marginLabels = useMemo(
+    () => marginTierLabels(stateSlice.config.marginTierPct),
+    [stateSlice.config.marginTierPct],
   );
 
   const rollup = useMemo(() => {
@@ -49,6 +55,7 @@ export function SummarySection(props: { filePath?: string | null }) {
       manpower: stateSlice.manpower,
       equipment: stateSlice.equipment,
       disciplineClassifications: stateSlice.disciplineClassifications,
+      config: stateSlice.config,
     });
   }, [meta, stateSlice]);
 
@@ -220,7 +227,7 @@ export function SummarySection(props: { filePath?: string | null }) {
                   {COST_CENTER_LABELS[line.costCenter]}
                 </td>
                 <td className="py-2 pr-2 text-xs text-zinc-500">
-                  {MARGIN_TIER_LABELS[line.marginTier]}
+                  {marginLabels[line.marginTier]}
                 </td>
                 <td className="py-2 text-right font-mono text-teal-200">
                   {usd(line.withMarginUsd)}

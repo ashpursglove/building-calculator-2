@@ -34,6 +34,7 @@ import { HardwarePanel } from "./HardwarePanel";
 import { ManpowerPanel } from "./ManpowerPanel";
 import { EquipmentPanel } from "./EquipmentPanel";
 import { LogisticsTimePanel } from "./LogisticsTimePanel";
+import { ConfigPanel } from "./ConfigPanel";
 
 /** Strip Zustand action methods — only persisted fields for JSON. */
 function diskSlice(): ConstructionState {
@@ -51,6 +52,7 @@ function diskSlice(): ConstructionState {
     manpower: s.manpower,
     equipment: s.equipment,
     disciplineClassifications: s.disciplineClassifications,
+    config: s.config,
     toast: null,
   };
 }
@@ -66,6 +68,7 @@ const TABS = [
   { id: "manpower", label: "Manpower" },
   { id: "equipment", label: "Equipment" },
   { id: "logistics", label: "Logistics & Time" },
+  { id: "config", label: "Config" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -220,7 +223,7 @@ export function PlannerShell() {
   }, [onSaveAs, path, persistJson]);
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-950 text-zinc-100">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-zinc-950 text-zinc-100">
       <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-panel px-4 py-2">
         <h1 className="text-base font-semibold tracking-tight text-teal-400">
           GDT Construction Planner
@@ -267,7 +270,7 @@ export function PlannerShell() {
         ))}
       </nav>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-16">
+      <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 pb-16">
         {tab === "summary" ?
           <SummarySection filePath={path} />
         : tab === "reactors" ?
@@ -286,7 +289,9 @@ export function PlannerShell() {
           <ManpowerPanel />
         : tab === "equipment" ?
           <EquipmentPanel />
-        : <LogisticsTimePanel />}
+        : tab === "logistics" ?
+          <LogisticsTimePanel />
+        : <ConfigPanel />}
       </main>
 
       {toast ?

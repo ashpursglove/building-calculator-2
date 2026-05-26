@@ -11,10 +11,16 @@ import {
   UnitTh,
   GhostNumberInput,
   PlannerHeadRow,
+  PlannerTd,
   PlannerTh,
   PlannerThead,
   numInputCls,
+  plannerColActions,
+  plannerColNumeric,
+  plannerColNumericSm,
+  plannerColOn,
   plannerTableClass,
+  plannerTableNumericInputCls,
 } from "@/components/planner/ui";
 
 const HELP = {
@@ -103,14 +109,14 @@ export function BreezePanel(props: { blockNames: string[] }) {
           <table className={plannerTableClass("min-w-[640px]")}>
             <PlannerThead>
               <PlannerHeadRow>
-                <PlannerTh>On</PlannerTh>
+                <PlannerTh className={plannerColOn}>On</PlannerTh>
                 <PlannerTh>
                   Group <HelpIcon text={HELP.groupLabel} />
                 </PlannerTh>
                 <UnitTh label="Length" unit="m" help={HELP.wallLength} />
                 <UnitTh label="Height" unit="m" help={HELP.wallHeight} />
-                <UnitTh label="Count" unit="#" help={HELP.wallCount} />
-                <PlannerTh align="right" className="w-16">
+                <UnitTh label="Count" unit="#" help={HELP.wallCount} size="sm" />
+                <PlannerTh align="center" className={plannerColActions}>
                   <span className="sr-only">Actions</span>
                 </PlannerTh>
               </PlannerHeadRow>
@@ -124,7 +130,7 @@ export function BreezePanel(props: { blockNames: string[] }) {
                     !w.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -134,7 +140,7 @@ export function BreezePanel(props: { blockNames: string[] }) {
                       }
                       aria-label={`Enable ${w.label}`}
                     />
-                  </td>
+                  </PlannerTd>
                   <td className="py-2 pr-2">
                     <input
                       className={clsx(numInputCls(), "min-w-[180px]")}
@@ -145,32 +151,32 @@ export function BreezePanel(props: { blockNames: string[] }) {
                       }
                     />
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[100px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.001}
                       value={w.lengthM}
                       onChange={(n) => patchWall(w.id, { lengthM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[100px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.001}
                       value={w.heightM}
                       onChange={(n) => patchWall(w.id, { heightM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumericSm}>
                     <GhostNumberInput
-                      className="max-w-[80px] text-right"
+                      className={plannerTableNumericInputCls()}
                       min={0}
                       integer
                       value={w.count}
                       onChange={(n) => patchWall(w.id, { count: n })}
                     />
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -178,7 +184,7 @@ export function BreezePanel(props: { blockNames: string[] }) {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               ))}
               {breeze.walls.length === 0 ?
@@ -205,14 +211,14 @@ export function BreezePanel(props: { blockNames: string[] }) {
           <table className={plannerTableClass("min-w-[640px]")}>
             <PlannerThead>
               <PlannerHeadRow>
-                <PlannerTh>On</PlannerTh>
+                <PlannerTh className={plannerColOn}>On</PlannerTh>
                 <PlannerTh>
                   Group <HelpIcon text={HELP.groupLabel} />
                 </PlannerTh>
                 <UnitTh label="Radius" unit="m" help={HELP.arcRadius} />
                 <UnitTh label="Height" unit="m" help={HELP.arcHeight} />
-                <UnitTh label="Count" unit="#" help={HELP.arcCount} />
-                <PlannerTh align="right" className="w-16">
+                <UnitTh label="Count" unit="#" help={HELP.arcCount} size="sm" />
+                <PlannerTh align="center" className={plannerColActions}>
                   <span className="sr-only">Actions</span>
                 </PlannerTh>
               </PlannerHeadRow>
@@ -226,7 +232,7 @@ export function BreezePanel(props: { blockNames: string[] }) {
                     !a.enabled && "opacity-50",
                   )}
                 >
-                  <td className="py-2 pr-2">
+                  <PlannerTd align="center" className={plannerColOn}>
                     <input
                       type="checkbox"
                       className="h-4 w-4 accent-teal-500"
@@ -236,7 +242,7 @@ export function BreezePanel(props: { blockNames: string[] }) {
                       }
                       aria-label={`Enable ${a.label}`}
                     />
-                  </td>
+                  </PlannerTd>
                   <td className="py-2 pr-2">
                     <input
                       className={clsx(numInputCls(), "min-w-[180px]")}
@@ -247,32 +253,32 @@ export function BreezePanel(props: { blockNames: string[] }) {
                       }
                     />
                   </td>
-                  <td className="py-2 pr-2 text-right">
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[100px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.001}
                       value={a.radiusM}
                       onChange={(n) => patchArc(a.id, { radiusM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumeric}>
                     <GhostNumberInput
-                      className="max-w-[100px] text-right"
+                      className={plannerTableNumericInputCls()}
                       step={0.001}
                       value={a.heightM}
                       onChange={(n) => patchArc(a.id, { heightM: n })}
                     />
-                  </td>
-                  <td className="py-2 pr-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColNumericSm}>
                     <GhostNumberInput
-                      className="max-w-[80px] text-right"
+                      className={plannerTableNumericInputCls()}
                       min={0}
                       integer
                       value={a.count}
                       onChange={(n) => patchArc(a.id, { count: n })}
                     />
-                  </td>
-                  <td className="py-2 text-right">
+                  </PlannerTd>
+                  <PlannerTd align="center" className={plannerColActions}>
                     <button
                       type="button"
                       className="text-xs text-rose-400 hover:text-rose-300"
@@ -280,7 +286,7 @@ export function BreezePanel(props: { blockNames: string[] }) {
                     >
                       remove
                     </button>
-                  </td>
+                  </PlannerTd>
                 </tr>
               ))}
               {breeze.arcs.length === 0 ?

@@ -7,7 +7,7 @@ export interface EquipmentPresetRow {
 }
 
 export const EQUIPMENT_DEFAULT_ROWS: EquipmentPresetRow[] = [
-  { name: "20t Excavator", rateUsdH: 90, fuelLH: 18 },
+  { name: "Excavator", rateUsdH: 90, fuelLH: 18 },
   { name: "Wheel Loader", rateUsdH: 80, fuelLH: 15 },
   { name: "Vibratory Roller", rateUsdH: 60, fuelLH: 10 },
   { name: "Water Tanker", rateUsdH: 55, fuelLH: 8 },
@@ -17,12 +17,16 @@ export const EQUIPMENT_DEFAULT_ROWS: EquipmentPresetRow[] = [
   { name: "Telehandler / Forklift", rateUsdH: 65, fuelLH: 9 },
 ];
 
-export interface EquipmentRowInputs {
+export interface EquipmentRow {
+  id: string;
   name: string;
   count: number;
   rateUsdH: number;
   fuelLH: number;
   utilPct: number;
+  /** When null, use equipment schedule days for this row. */
+  daysOverride: number | null;
+  enabled: boolean;
 }
 
 export interface EquipmentResult {
@@ -48,8 +52,28 @@ export class EquipmentError extends Error {
   }
 }
 
+export function defaultEquipmentRow(preset?: EquipmentPresetRow): EquipmentRow {
+  return {
+    id: `eq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: preset?.name ?? "New plant item",
+    count: preset ? 1 : 0,
+    rateUsdH: preset?.rateUsdH ?? 0,
+    fuelLH: preset?.fuelLH ?? 0,
+    utilPct: 70,
+    daysOverride: null,
+    enabled: true,
+  };
+}
+
+export function effectiveEquipmentDays(
+  row: EquipmentRow,
+  scheduleDays: number,
+): number {
+  return row.daysOverride ?? scheduleDays;
+}
+
 export function calculateEquipment(opts: {
-  rows: EquipmentRowInputs[];
+  rows: EquipmentRow[];
   days: number;
   hoursPerDay: number;
   fuelPriceUsdL: number;
@@ -80,8 +104,6 @@ export function calculateEquipment(opts: {
     );
   }
 
-  const scheduleHours = days * hoursPerDay;
-
   let totalHours = 0;
   let hire = 0;
   let litres = 0;
@@ -89,23 +111,28 @@ export function calculateEquipment(opts: {
   const lines: string[] = [];
 
   lines.push(
-    `Schedule: ${days} days × ${hoursPerDay.toFixed(1)} h/day = ${scheduleHours.toFixed(1)} h per unit.`,
+    `Default programme: ${days} days × ${hoursPerDay.toFixed(1)} h/day.`,
   );
   lines.push(`Fuel price: $${fuelPriceUsdL.toFixed(3)} per litre.`);
   lines.push("");
   lines.push("Per-equipment details:");
-  lines.push("Name | Units | Utilisation | Hours | Fuel (L) | Hire cost (USD) | Fuel cost (USD)");
-  lines.push("-".repeat(90));
+  lines.push("Name | Units | Days | Utilisation | Hours | Fuel (L) | Hire cost (USD) | Fuel cost (USD)");
+  lines.push("-".repeat(96));
 
   for (let i = 0; i < rows.length; i++) {
-    let name = rows[i].name.trim();
-    if (!name) name = `Item ${i + 1}`;
-    const count = Math.max(0, Math.trunc(rows[i].count));
-    const rate = rows[i].rateUsdH;
-    const lph = rows[i].fuelLH;
-    const util = rows[i].utilPct;
+    const row = rows[i]!;
+    if (!row.enabled) continue;
 
-    if (count <= 0 || rate <= 0 || util <= 0 || hoursPerDay === 0) {
+    let name = row.name.trim();
+    if (!name) name = `Item ${i + 1}`;
+    const count = Math.max(0, Math.trunc(row.count));
+    const rate = row.rateUsdH;
+    const lph = row.fuelLH;
+    const util = row.utilPct;
+    const rowDays = effectiveEquipmentDays(row, days);
+    const scheduleHours = rowDays * hoursPerDay;
+
+    if (count <= 0 || rate <= 0 || util <= 0 || hoursPerDay === 0 || rowDays <= 0) {
       continue;
     }
 
@@ -119,8 +146,11 @@ export function calculateEquipment(opts: {
     litres += fuelRow;
     fuelCost += fuelRow * fuelPriceUsdL;
 
+    const daysNote =
+      row.daysOverride !== null ? `${rowDays}` : `${rowDays} (default)`;
+
     lines.push(
-      `${name} | ${count} | ${util.toFixed(1)}% | ${hoursEffective.toFixed(1)} h | ` +
+      `${name} | ${count} | ${daysNote} | ${util.toFixed(1)}% | ${hoursEffective.toFixed(1)} h | ` +
         `${fuelRow.toFixed(1)} L | $${hireRow.toFixed(2)} | $${(fuelRow * fuelPriceUsdL).toFixed(2)}`,
     );
   }
