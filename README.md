@@ -2,7 +2,9 @@
 
 **v1.1.0** — desktop construction estimator for reactor sites, spreadsheets, and anyone who has ever typed “≈” into a BOQ and called it done.
 
-Successor to the legacy **building calculator 2** Python/PyQt tool. Same spirit: deterministic maths, local files, no login screen, no dashboard that wants to be your friend. Now with React, TypeScript, Tauri, and a file extension Windows might actually respect.
+## Download the .exe [**HERE**](https://github.com/ashpursglove/building-calculator-2/releases/download/v1.0.0/GDT.Construction.Planner.exe)
+
+Successor to the legacy **building calculator** Python/PyQt tool. Same spirit: deterministic maths, local files, no login screen, no dashboard that wants to be your friend. Now with React, TypeScript, Tauri, and a file extension Windows might actually respect.
 
 ---
 
@@ -251,3 +253,5 @@ No guarantees.
 No miracles.  
 
 Just software that prefers your reactor count to be an integer and your sand volume to be calculated before it appears in a PDF.
+
+## Download the .exe [**HERE**](https://github.com/ashpursglove/building-calculator-2/releases/download/v1.0.0/GDT.Construction.Planner.exe)
